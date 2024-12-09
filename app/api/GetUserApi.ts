@@ -1,12 +1,12 @@
 import axios from "axios";
 
-const BASE_URL = "http://192.168.254.81:5000/api/track"; // Replace with your backend URL
+const BASE_URL = "http://192.168.254.81:5000/api/profile"; // Replace with your backend URL
 
 // Connect User API function
-const connectUser = async (userId: string, connectId: string) => {
+const GetUserApi = async (userId: string) => {
   try {
     // Sending a POST request to the backend to connect the users
-    const response = await axios.post(`${BASE_URL}/connect`, { userId, connectId });
+    const response = await axios.post(`${BASE_URL}/getconnections`, { userId});
 
     // Returning the response from the backend
     return response.data;
@@ -16,4 +16,4 @@ const connectUser = async (userId: string, connectId: string) => {
   }
 };
 
-export default connectUser;
+export default GetUserApi;

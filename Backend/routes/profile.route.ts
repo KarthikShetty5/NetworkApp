@@ -72,7 +72,7 @@ router.get("/getprofile",async (req:any, res:any) => {
     }
   });
 
-  router.post("/signup", async (req: { body: { userId: any; password: any; name:any; phone: any; email: any; location: any; }; }, res: { status: (arg0: number) => { (): any; new(): any; json: { (arg0: { success: boolean; message: string; data?: any; error?: any; }): void; new(): any; }; }; }) => {
+router.post("/signup", async (req: { body: { userId: any; password: any; name:any; phone: any; email: any; location: any; }; }, res: { status: (arg0: number) => { (): any; new(): any; json: { (arg0: { success: boolean; message: string; data?: any; error?: any; }): void; new(): any; }; }; }) => {
    console.log(req.body)
     try {
       const { name, userId, phone, email, location, password } = req.body;
@@ -123,7 +123,7 @@ router.get("/getprofile",async (req:any, res:any) => {
     }
   });
 
-  router.post("/login", async (req: { body: { phone: any; password: any; }; }, res: { status: (arg0: number) => { (): any; new(): any; json: { (arg0: { success: boolean; message: string; data?: { userId: any; name: any; phone: any; email: any; location: any; }; error?: any; }): void; new(): any; }; }; }) => {
+router.post("/login", async (req: { body: { phone: any; password: any; }; }, res: { status: (arg0: number) => { (): any; new(): any; json: { (arg0: { success: boolean; message: string; data?: { userId: any; name: any; phone: any; email: any; location: any; }; error?: any; }): void; new(): any; }; }; }) => {
     const { phone, password } = req.body;
   
     try {
@@ -179,7 +179,43 @@ router.get("/getprofile",async (req:any, res:any) => {
   });
 
 
-
+router.post("/getconnections", async (req: any, res: any) => {
+    const { userId } = req.body;
+  
+    try {
+      const Connect = require("../model/Connection.model").default;
+      const Profile = require("../model/Profile.model").default;
+  
+      // Find the connection for the provided userId
+      const connections = await Connect.findOne({ userId });
+  
+      if (!connections || !connections.userConnection || connections.userConnection.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "No connections found for this userId",
+        });
+      }
+  
+      // Fetch profiles for all connected userIds
+      const connectedProfiles = await Profile.find({
+        userId: { $in: connections.userConnection },
+      });
+  
+      res.status(200).send({
+        message: "Connections fetched successfully",
+        success: true,
+        data: connectedProfiles,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).send({
+        message: "Error fetching connection profiles",
+        success: false,
+        error,
+      });
+    }
+  });
+  
 
 
 module.exports = router;

@@ -10,7 +10,7 @@ const dummyImage = "https://icon-library.com/images/generic-user-icon/generic-us
 
 const Map: React.FC = () => {
   const [nearbyUsers, setNearbyUsers] = useState<
-    { _id: string; name: string; location: { latitude: number; longitude: number } }[]
+    { _id: string; name: string; imageUrl:string; location: { latitude: number; longitude: number } }[]
   >([]);
   const [loading, setLoading] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<Region | null>(null);
@@ -49,6 +49,7 @@ const Map: React.FC = () => {
             userId:user.userId,
             name: user.name,
             location: user.location,
+            imageUrl:user.imageUrl
           }))
         );
       } else {
@@ -112,7 +113,7 @@ const Map: React.FC = () => {
               title={user.name}
               onPress={() => handleMarkerPress(user)} // Show modal on marker press
             >
-              <Image source={{ uri: dummyImage }} style={styles.profileImage} />
+              <Image source={{ uri: user.imageUrl }} style={styles.profileImage} />
               <Circle
                 center={{
                   latitude: user.location.latitude,
@@ -142,7 +143,7 @@ const Map: React.FC = () => {
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>{selectedUser.name}</Text>
-              <Image source={{ uri: dummyImage }} style={styles.modalImage} />
+              <Image source={{ uri: selectedUser.imageUrl }} style={styles.modalImage} />
               <Text style={styles.modalDescription}>This is {selectedUser.name}. Do you want to connect?</Text>
 
               <TouchableOpacity

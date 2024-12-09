@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = "http://192.168.237.81:5000/api/track"; // Replace with your backend URL
+const BASE_URL = "http://192.168.254.81:5000/api/track"; // Replace with your backend URL
 
 export interface NearbyUsersPayload {
   latitude: number;

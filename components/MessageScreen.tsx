@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image, Modal } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image, Modal, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import GetUserApi from '@/app/api/GetUserApi';
 
 interface Message {
   id: string;
   name: string;
   lastMessage: string;
-  profilePic: string;
+  imageUrl: string;
   time: string;
 }
 
@@ -15,15 +17,32 @@ interface MessagesScreenProps {
 }
 
 const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
-  const [messages, setMessages] = useState<Message[]>([
-    { id: '1', name: 'John Doe', lastMessage: 'Hey, what\'s up?', profilePic: 'https://randomuser.me/api/portraits/men/10.jpg', time: '10:30 AM' },
-    { id: '2', name: 'Jane Smith', lastMessage: 'Are you free tomorrow?', profilePic: 'https://randomuser.me/api/portraits/women/10.jpg', time: 'Yesterday' },
-    { id: '3', name: 'Mike Johnson', lastMessage: 'Got the file you sent!', profilePic: 'https://randomuser.me/api/portraits/men/11.jpg', time: '2:00 PM' },
-  ]);
   
+  const [messages, setMessages] = useState<Message[]>();
   const [modalVisible, setModalVisible] = useState<boolean>(false);
   const [selectedContact, setSelectedContact] = useState<Message | null>(null);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+
+  const fetchUser = async() => {
+    const userId = await AsyncStorage.getItem("userId");
+
+    if(!userId){
+      Alert.alert("Error", "User not logged in.");
+      return;
+    }
+
+    try {
+      const result = await GetUserApi(userId);
+      setMessages(result.data);
+    } catch (error) {
+      Alert.alert("Error", "Unable to connect users.");
+    }
+    setModalVisible(false); // Close modal after connecting
+  };
+
+  useEffect(()=>{
+    fetchUser();
+  },[])
 
   const toggleTheme = (): void => {
     setIsDarkMode(!isDarkMode);
@@ -46,7 +65,7 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
 
   const renderItem = ({ item }: { item: Message }) => (
     <TouchableOpacity onPress={() => openMessage(item)} style={[styles.messageItem, isDarkMode && styles.darkMessageItem]}>
-      <Image source={{ uri: item.profilePic }} style={styles.profilePic} />
+      <Image source={{ uri: item.imageUrl }} style={styles.profilePic} />
       <View style={styles.messageInfo}>
         <Text style={[styles.contactName, isDarkMode && styles.darkText]}>{item.name}</Text>
         <Text style={[styles.lastMessage, isDarkMode && styles.darkText]}>{item.lastMessage}</Text>

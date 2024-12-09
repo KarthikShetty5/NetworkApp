@@ -4,6 +4,7 @@ export interface ProfileDocument extends Document {
   userId: string;
   name: string;
   instagram?: string; // Optional field
+  imageUrl?: string; // Optional field
   phone?: string; // Optional field
   email?: string; // Optional field
   password: string; //
@@ -18,6 +19,7 @@ const profileSchema = new Schema<ProfileDocument>(
     userId: { type: String, required: true, unique: true },
     name: { type: String, required: true, trim: true },
     instagram: { type: String, trim: true, default: null },
+    imageUrl: { type: String, required:false },
     password: { type: String, required:true},
     phone: {
       type: String,

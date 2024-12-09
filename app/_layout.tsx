@@ -43,7 +43,7 @@ export default function RootLayout() {
             headerShown: false,
           }}
         >
-        <Stack.Screen name="Home" component={Map} />
+        <Stack.Screen name="Home" component={MessagesScreen} />
         <Stack.Screen name="Messages" component={MessagesScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
