@@ -10,6 +10,9 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import HomeScreen from '@/components/HomeScreen';
 import MessagesScreen from '@/components/MessageScreen';
 import ProfileScreen from '@/components/ProfileScreen';
+import Map from '@/components/MapScreen';
+import SignupScreen from '@/components/SignUpScreen';
+import LoginScreen from '@/components/LoginScreen';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -40,9 +43,10 @@ export default function RootLayout() {
             headerShown: false,
           }}
         >
-        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Home" component={Map} />
         <Stack.Screen name="Messages" component={MessagesScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="Login" component={LoginScreen} />
       </Stack.Navigator>
       <StatusBar style="auto" />
     </ThemeProvider>
