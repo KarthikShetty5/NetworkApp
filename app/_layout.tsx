@@ -13,6 +13,9 @@ import ProfileScreen from '@/components/ProfileScreen';
 import Map from '@/components/MapScreen';
 import SignupScreen from '@/components/SignUpScreen';
 import LoginScreen from '@/components/LoginScreen';
+import ChatScreen from '@/components/ChatScreen';
+import NotFoundScreen from './+not-found';
+import NotificationScreen from '@/components/NotifcationScreen';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -43,10 +46,11 @@ export default function RootLayout() {
             headerShown: false,
           }}
         >
-        <Stack.Screen name="Home" component={MessagesScreen} />
+        <Stack.Screen name="Home" component={ProfileScreen} />
         <Stack.Screen name="Messages" component={MessagesScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Chat" component={ChatScreen} />
       </Stack.Navigator>
       <StatusBar style="auto" />
     </ThemeProvider>

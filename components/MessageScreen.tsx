@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import GetUserApi from '@/app/api/GetUserApi';
 
 interface Message {
-  id: string;
+  _id: string;
   name: string;
   lastMessage: string;
   imageUrl: string;
@@ -24,7 +24,9 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
 
   const fetchUser = async() => {
-    const userId = await AsyncStorage.getItem("userId");
+    // const userId = '11223345'
+    const userId = '122345'
+
 
     if(!userId){
       Alert.alert("Error", "User not logged in.");
@@ -48,9 +50,10 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
     setIsDarkMode(!isDarkMode);
   };
 
-  const openMessage = (contact: Message): void => {
-    console.log('Open message with:', contact);
-    // navigation.navigate('MessageDetail', { contact }); // Uncomment if using navigation
+  const openMessage = async(contact: Message) => {
+    // const userId = '11223345'
+    const userId = '122345'
+    navigation.navigate("Chat", { contact, userId});
   };
 
   const handleMenuPress = (contact: Message): void => {
@@ -104,7 +107,7 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
       <FlatList
         data={messages}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item._id}
       />
 
       {/* Modal for blocking contact */}

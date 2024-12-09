@@ -1,3 +1,4 @@
+import { connect } from "mongoose";
 import Connection from "../model/Connection.model";
 
 const expre = require("express");
@@ -73,6 +74,7 @@ route.post('/connect', async (req: { body: { userId: any; connectId: any; }; }, 
     try {
       // Find or create a connection document for the user
       let userConnection = await Connection.findOne({ userId });
+      let connector = await Connection.findOne({ userId: connectId });
 
       if (userConnection && userConnection.userConnection.includes(connectId)) {
         return res.status(200).json({ message: 'Already connected' });
@@ -81,7 +83,21 @@ route.post('/connect', async (req: { body: { userId: any; connectId: any; }; }, 
       if (!userConnection) {
         userConnection = new Connection({ userId, userConnection: [] });
       }
-  
+
+      const Notification = require("../model/Notofication.model");
+
+      if (!connector || !connector.userConnection || !connector?.userConnection?.includes(userId)) {
+        // Create a new notification for the connected user
+        const newNotification = new Notification({
+            userId: connectId,
+            message: `${userId} has requested to connect with you.`,
+            viewed: false,
+            connectId:userId
+        });
+        // Save the new notification
+        await newNotification.save();
+      }
+    
       // Add connectId to the user's userConnection array if not already added
       if (!userConnection.userConnection.includes(connectId)) {
         userConnection.userConnection.push(connectId);
@@ -101,4 +117,76 @@ route.post('/connect', async (req: { body: { userId: any; connectId: any; }; }, 
       res.status(500).json({ message: 'An error occurred while connecting users' });
     }
   });
+
+route.post('/notification', async (req: { body: { userId: any; }; }, res: { json: (arg0: any) => void; status: (arg0: number) => { (): any; new(): any; json: { (arg0: { error: any; }): void; new(): any; }; }; }) => {
+    const Notification = require("../model/Notofication.model");
+    const { userId } = req.body;
+    try {
+      const messages = await Notification.find({userId});
+  
+      res.json(messages);
+    } catch (err:any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+route.post('/accept', async (req: { body: { connectId: any; userId: any; notificationId: any; }; }, res: { status: (arg0: number) => { (): any; new(): any; json: { (arg0: { error?: string; message?: string; notification?: any; }): any; new(): any; }; }; }) => {
+    const { connectId, userId, notificationId } = req.body;
+    console.log(req.body)
+
+    const Notification = require("../model/Notofication.model");
+
+    try {
+      const notification = await Notification.findById(notificationId);
+  
+      if (!notification) {
+        return res.status(404).json({ error: 'Notification not found' });
+      }
+  
+      // Logic for accepting the notification (e.g., mark it as accepted, update statuses, etc.)
+      notification.viewed = true; // Example: update status to 'accepted'
+      let userConnection = await Connection.findOne({ userId });
+      
+      if (!userConnection) {
+        userConnection = new Connection({ userId, userConnection: [] });
+      }
+
+      if (!userConnection.userConnection.includes(connectId)) {
+        userConnection.userConnection.push(connectId);
+      }
+  
+      // Save both connection documents
+      await userConnection.save();
+      await notification.save();
+  
+      return res.status(200).json({ message: 'Notification accepted', notification });
+    } catch (error) {
+      console.error('Error accepting notification:', error);
+      return res.status(500).json({ error: 'Failed to accept notification' });
+    }
+  });
+  
+  // Decline Notification Route
+route.post('/decline', async (req: { body: { notificationId: any; userId: any; }; }, res: { status: (arg0: number) => { (): any; new(): any; json: { (arg0: { error?: string; message?: string; notification?: any; }): any; new(): any; }; }; }) => {
+    const { notificationId, userId } = req.body;
+    const Notification = require("../model/Notofication.model");
+
+    try {
+      const notification = await Notification.findById(notificationId);
+  
+      if (!notification) {
+        return res.status(404).json({ error: 'Notification not found' });
+      }
+  
+      // Logic for declining the notification (e.g., mark it as declined, update statuses, etc.)
+      notification.viewed = true; // Example: update status to 'declined'  
+      await notification.save();
+  
+      return res.status(200).json({ message: 'Notification declined', notification });
+    } catch (error) {
+      console.error('Error declining notification:', error);
+      return res.status(500).json({ error: 'Failed to decline notification' });
+    }
+  });
+
 module.exports = route;
