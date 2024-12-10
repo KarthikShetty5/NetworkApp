@@ -3,9 +3,10 @@ import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image, Modal, Alert
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import GetUserApi from '@/app/api/GetUserApi';
+import GetRecentApi from '@/app/api/GetRecentApi';
 
 interface Message {
-  _id: string;
+  userId: string;
   name: string;
   lastMessage: string;
   imageUrl: string;
@@ -23,27 +24,48 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
   const [selectedContact, setSelectedContact] = useState<Message | null>(null);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
 
-  const fetchUser = async() => {
-    // const userId = '11223345'
-    const userId = '122345'
-
-
-    if(!userId){
+  const fetchUserData = async () => {
+    const userId = '122345'; // Replace with dynamic userId fetching logic
+    if (!userId) {
       Alert.alert("Error", "User not logged in.");
       return;
     }
 
     try {
-      const result = await GetUserApi(userId);
-      setMessages(result.data);
+      // Fetch user connections
+      const userResult = await GetUserApi(userId);
+      const connections = userResult.data;
+      
+      // Fetch recent messages
+      const recentResult = await GetRecentApi(userId);
+      const recentMessages = recentResult.recentMessages;
+      console.log(recentMessages)
+
+      // Merge connections with recent messages
+      const mergedData = connections.map((connection: any) => {
+        const recentMessage = recentMessages.find(
+          (message: any) => message.connectionId === connection.userId
+        );
+      
+        return {
+          userId: connection.userId, // Assuming `userId` is the unique identifier
+          name: connection.name,
+          imageUrl: connection.imageUrl,
+          lastMessage: recentMessage ? recentMessage.recentMessage : "Start the conversation now...",
+          time: "Just now", // Placeholder for time, replace as needed
+        };
+      });
+
+      setMessages(mergedData);
     } catch (error) {
-      Alert.alert("Error",process.env.MAIN_URL);
+      Alert.alert("Error", "Failed to fetch user data.");
     }
-    setModalVisible(false); // Close modal after connecting
+
+    setModalVisible(false);
   };
 
   useEffect(()=>{
-    fetchUser();
+    fetchUserData();
   },[])
 
   const toggleTheme = (): void => {
@@ -122,7 +144,7 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
       <FlatList
         data={messages}
         renderItem={renderItem}
-        keyExtractor={(item) => item._id}
+        keyExtractor={(item) => item.userId}
       />
 
       {/* Modal for blocking contact */}

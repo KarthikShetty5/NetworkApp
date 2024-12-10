@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import io from "socket.io-client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const SOCKET_URL = `${process.env.MAIN_URL}`; // Update with your backend URL
+const SOCKET_URL = "http://192.168.95.81:5000"; // Update with your backend URL
 
 const ChatScreen = ({ route, navigation }: any) => {
   const { contact, userId } = route.params;
