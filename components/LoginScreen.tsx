@@ -70,7 +70,7 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
 
       <Text style={styles.text}>
         Don't have an account?{" "}
-        <Text style={styles.link} onPress={() => navigation.navigate("Signup")}>
+        <Text style={styles.link} onPress={() => navigation.navigate("SignUp")}>
           Sign Up
         </Text>
       </Text>

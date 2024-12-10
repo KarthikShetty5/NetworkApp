@@ -37,7 +37,7 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
       const result = await GetUserApi(userId);
       setMessages(result.data);
     } catch (error) {
-      Alert.alert("Error", "Unable to connect users.");
+      Alert.alert("Error",process.env.MAIN_URL);
     }
     setModalVisible(false); // Close modal after connecting
   };
@@ -65,6 +65,21 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
     console.log('Block contact:', selectedContact?.name);
     setModalVisible(false);
   };
+
+  useEffect(() => {
+    const checkUserId = async () => {
+      try {
+        const userId = await AsyncStorage.getItem('userId'); // Fetch userId from AsyncStorage
+        if (!userId) {
+          navigation.replace('SignUp'); 
+        }
+      } catch (error) {
+        console.error('Error checking userId:', error);
+      }
+    };
+
+    checkUserId();
+  }, [navigation]);
 
   const renderItem = ({ item }: { item: Message }) => (
     <TouchableOpacity onPress={() => openMessage(item)} style={[styles.messageItem, isDarkMode && styles.darkMessageItem]}>

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, TextInput, Image } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 // import BluetoothManager from './BluetoothManager'; // Adjust the import path as needed
 // import Broadcaster from './Broadcaster'; // Adjust the import path as needed
 
@@ -19,8 +20,23 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const toggleSwitch = () => setIsDarkMode((previousState) => !previousState);
 
   const scanNearby = () => {
-    console.log('Scanning for nearby devices...');
+    navigation.replace('Map'); 
   };
+
+  useEffect(() => {
+    const checkUserId = async () => {
+      try {
+        const userId = await AsyncStorage.getItem('userId'); // Fetch userId from AsyncStorage
+        if (!userId) {
+          navigation.replace('SignUp'); 
+        }
+      } catch (error) {
+        console.error('Error checking userId:', error);
+      }
+    };
+
+    checkUserId();
+  }, [navigation]);
 
   const handleTabChange = (tab: string) => {
     setSelectedTab(tab);

@@ -5,10 +5,13 @@ import * as Location from "expo-location";
 import { getNearbyUsersApi } from "@/app/api/TrackApi";
 import connectUser from "@/app/api/ConnectApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 
-const dummyImage = "https://icon-library.com/images/generic-user-icon/generic-user-icon-9.jpg";
+type MapScreenProps = {
+  navigation: any;
+};
 
-const Map: React.FC = () => {
+const Map: React.FC <MapScreenProps> = ({navigation}) => {
   const [nearbyUsers, setNearbyUsers] = useState<
     { _id: string; name: string; imageUrl:string; location: { latitude: number; longitude: number } }[]
   >([]);
@@ -88,8 +91,27 @@ const Map: React.FC = () => {
     setModalVisible(true); // Open modal on marker press
   };
 
+  useEffect(() => {
+    const checkUserId = async () => {
+      try {
+        const userId = await AsyncStorage.getItem('userId'); // Fetch userId from AsyncStorage
+        if (!userId) {
+          navigation.replace('SignUp'); 
+        }
+      } catch (error) {
+        console.error('Error checking userId:', error);
+      }
+    };
+
+    checkUserId();
+  }, [navigation]);
+
   return (
     <View style={styles.container}>
+      <TouchableOpacity onPress={() => console.log("ckcil")} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={30} color='black' />
+      </TouchableOpacity>
+        <Text style={styles.title}>Map</Text>
       {loading && (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="blue" />
@@ -170,14 +192,15 @@ const Map: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor:'white'
   },
   map: {
-    height: "100%",
+    height: "92%",
     width: "100%",
   },
   loadingContainer: {
     position: "absolute",
-    top: 50,
+    top: 200,
     left: 0,
     right: 0,
     justifyContent: "center",
@@ -193,6 +216,21 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "gray",
+  },
+  backButton: {
+    marginRight: 10,
+    top:32,
+    marginLeft:10
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'black',
+    flex: 1,
+    textAlign: 'center',
+  },
+  darkText: {
+    color: '#FFF',
   },
   profileImage: {
     width: 50,

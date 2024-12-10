@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { getNotification, acceptNotification, declineNotification } from '@/app/api/GetNotificationApi'; // Import API helper
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface Notification {
   _id: string;
@@ -9,8 +10,28 @@ interface Notification {
   connectId: string; // Add the connectId for handling acceptance
 }
 
-const NotificationScreen = () => {
+type NotificationScreenProps = {
+  navigation: any;
+};
+
+
+const NotificationScreen: React.FC<NotificationScreenProps> = ({navigation}) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  useEffect(() => {
+    const checkUserId = async () => {
+      try {
+        const userId = await AsyncStorage.getItem('userId'); // Fetch userId from AsyncStorage
+        if (!userId) {
+          navigation.replace('SignUp'); 
+        }
+      } catch (error) {
+        console.error('Error checking userId:', error);
+      }
+    };
+
+    checkUserId();
+  }, [navigation]);
 
   // Fetch notifications on component mount
   useEffect(() => {

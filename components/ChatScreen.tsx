@@ -2,8 +2,9 @@ import React, { useEffect, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import io from "socket.io-client";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const SOCKET_URL = "http://192.168.54.81:5000"; // Update with your backend URL
+const SOCKET_URL = `${process.env.MAIN_URL}`; // Update with your backend URL
 
 const ChatScreen = ({ route, navigation }: any) => {
   const { contact, userId } = route.params;
@@ -34,6 +35,22 @@ const ChatScreen = ({ route, navigation }: any) => {
       newSocket.disconnect();
     };
   }, [userId, contact.id]);
+
+
+  useEffect(() => {
+    const checkUserId = async () => {
+      try {
+        const userId = await AsyncStorage.getItem('userId'); // Fetch userId from AsyncStorage
+        if (!userId) {
+          navigation.replace('SignUp'); 
+        }
+      } catch (error) {
+        console.error('Error checking userId:', error);
+      }
+    };
+
+    checkUserId();
+  }, [navigation]);
 
   const fetchMessages = async () => {
     try {

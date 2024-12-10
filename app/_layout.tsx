@@ -10,7 +10,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import HomeScreen from '@/components/HomeScreen';
 import MessagesScreen from '@/components/MessageScreen';
 import ProfileScreen from '@/components/ProfileScreen';
-import Map from '@/components/MapScreen';
+import MapScreen from '@/components/MapScreen';
 import SignupScreen from '@/components/SignUpScreen';
 import LoginScreen from '@/components/LoginScreen';
 import ChatScreen from '@/components/ChatScreen';
@@ -46,10 +46,13 @@ export default function RootLayout() {
             headerShown: false,
           }}
         >
-        <Stack.Screen name="Home" component={ProfileScreen} />
+        <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Messages" component={MessagesScreen} />
+        <Stack.Screen name="Notification" component={NotificationScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="SignUp" component={SignupScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Map" component={MapScreen} />
         <Stack.Screen name="Chat" component={ChatScreen} />
       </Stack.Navigator>
       <StatusBar style="auto" />
