@@ -1,24 +1,56 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, ActivityIndicator, Text, Alert, Image, Modal, TouchableOpacity } from "react-native";
+import { 
+  View, 
+  StyleSheet, 
+  ActivityIndicator, 
+  Text, 
+  Alert, 
+  Image, 
+  Modal, 
+  TouchableOpacity, 
+  Dimensions 
+} from "react-native";
 import MapView, { Circle, Marker, Region } from "react-native-maps";
 import * as Location from "expo-location";
-import { getNearbyUsersApi } from "@/app/api/TrackApi";
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withSpring,
+  withTiming 
+} from 'react-native-reanimated';
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import * as Haptics from 'expo-haptics';
 import connectUser from "@/app/api/ConnectApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Ionicons } from "@expo/vector-icons";
+import getNearbyUsersApi from "@/app/api/TrackApi";
 
-type MapScreenProps = {
-  navigation: any;
+// Color Palette
+const COLORS = {
+  background: '#121212',
+  primary: '#6A7AE8',
+  secondary: '#34D399',
+  text: '#E0E0E0',
+  card: '#1E1E1E',
+  accent: '#FF6B6B'
 };
 
-const Map: React.FC <MapScreenProps> = ({navigation}) => {
-  const [nearbyUsers, setNearbyUsers] = useState<
-    { _id: string; name: string; imageUrl:string; location: { latitude: number; longitude: number } }[]
-  >([]);
+interface MapScreenProps {
+  navigation: any;
+}
+
+const { width, height } = Dimensions.get('window');
+
+const Map: React.FC<MapScreenProps> = ({ navigation }) => {
+  const [nearbyUsers, setNearbyUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<Region | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
+
+  // Animated values
+  const modalScale = useSharedValue(1);
+  const markerScale = useSharedValue(1);
 
   const fetchNearbyUsers = async () => {
     setLoading(true);
@@ -86,44 +118,76 @@ const Map: React.FC <MapScreenProps> = ({navigation}) => {
     setModalVisible(false); // Close modal after connecting
   };
 
+  // Marker Press Handler
   const handleMarkerPress = (user: any) => {
+    // Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    // Animate marker
+    // markerScale.value = withSpring(1.2);
+    // setTimeout(() => {
+    //   markerScale.value = withSpring(1);
+    // }, 300);
+    
+    // Set selected user and show modal
+    setModalVisible(true);
     setSelectedUser(user);
-    setModalVisible(true); // Open modal on marker press
   };
 
-  useEffect(() => {
-    const checkUserId = async () => {
-      try {
-        const userId = await AsyncStorage.getItem('userId'); // Fetch userId from AsyncStorage
-        if (!userId) {
-          navigation.replace('SignUp'); 
-        }
-      } catch (error) {
-        console.error('Error checking userId:', error);
-      }
+  // Animated Modal Style
+  const animatedModalStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { scale: withSpring(modalScale.value) }
+      ]
     };
+  });
 
-    checkUserId();
-  }, [navigation]);
+  // Animated Marker Style
+  const animatedMarkerStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { scale: withSpring(markerScale.value) }
+      ]
+    };
+  });
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity onPress={() => console.log("ckcil")} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={30} color='black' />
-      </TouchableOpacity>
-        <Text style={styles.title}>Map</Text>
+    <LinearGradient
+      colors={['#121212', '#1E1E1E', '#121212']}
+      style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()} 
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={30} color={COLORS.text} />
+        </TouchableOpacity>
+        <Text style={styles.title}>Nearby Connections</Text>
+        <TouchableOpacity style={styles.filterButton}>
+          <MaterialCommunityIcons 
+            name="filter-variant" 
+            size={24} 
+            color={COLORS.text} 
+          />
+        </TouchableOpacity>
+      </View>
+
+      {/* Loading Indicator */}
       {loading && (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="blue" />
-          <Text>Loading nearby users...</Text>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Scanning nearby users...</Text>
         </View>
       )}
 
+      {/* Map View */}
       {!loading && currentLocation && (
         <MapView
           style={styles.map}
           initialRegion={currentLocation}
-          showsUserLocation={true} // Highlight the user's current location
+          showsUserLocation={true}
+          customMapStyle={mapStyle} // Custom dark map style
         >
           {nearbyUsers.map((user) => (
             <Marker
@@ -132,166 +196,202 @@ const Map: React.FC <MapScreenProps> = ({navigation}) => {
                 latitude: user.location.latitude,
                 longitude: user.location.longitude,
               }}
-              title={user.name}
-              onPress={() => handleMarkerPress(user)} // Show modal on marker press
+              onPress={() => handleMarkerPress(user)}
             >
-              <Image source={{ uri: user.imageUrl }} style={styles.profileImage} />
-              <Circle
-                center={{
-                  latitude: user.location.latitude,
-                  longitude: user.location.longitude,
-                }}
-                radius={10}
-                strokeColor="rgba(255, 0, 0, 0.8)"
-                fillColor="rgba(255, 0, 0, 0.3)"
-              />
+              <Animated.View style={animatedMarkerStyle}>
+                <Image 
+                  source={{ uri: user.imageUrl }} 
+                  style={styles.profileImage} 
+                />
+                <Circle
+                  center={{
+                    latitude: user.location.latitude,
+                    longitude: user.location.longitude,
+                  }}
+                  radius={50}
+                  strokeColor="rgba(106, 122, 232, 0.5)"
+                  fillColor="rgba(106, 122, 232, 0.2)"
+                />
+              </Animated.View>
             </Marker>
           ))}
         </MapView>
       )}
 
-      {!loading && nearbyUsers.length === 0 && (
-        <Text style={styles.noUsersText}>No nearby users found.</Text>
-      )}
-
-      {/* Modal for displaying user details and connect button */}
-      {selectedUser && (
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={modalVisible}
-          onRequestClose={() => setModalVisible(false)}
-        >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>{selectedUser.name}</Text>
-              <Image source={{ uri: selectedUser.imageUrl }} style={styles.modalImage} />
-              <Text style={styles.modalDescription}>This is {selectedUser.name}. Do you want to connect?</Text>
-
-              <TouchableOpacity
-                style={styles.connectButton}
-                onPress={() => handleConnect(selectedUser.userId)} // Log the user ID
-              >
-                <Text style={styles.connectButtonText}>Connect</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setModalVisible(false)}
-              >
-                <Text style={styles.closeButtonText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      )}
-    </View>
+      {/* User Details Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <Animated.View 
+            style={[
+              styles.modalContent, 
+              animatedModalStyle
+            ]}
+          >
+            <LinearGradient
+              colors={[COLORS.primary, COLORS.secondary]}
+              style={styles.modalGradient}
+            >
+              <Image 
+                source={{ uri: selectedUser?.imageUrl }} 
+                style={styles.modalImage} 
+              />
+              <Text style={styles.modalTitle}>{selectedUser?.name}</Text>
+              <Text style={styles.modalSubtitle}>
+                {selectedUser?.location ? 
+                  `${Math.round(selectedUser.location.latitude)}, ${Math.round(selectedUser.location.longitude)}` 
+                  : 'Location Unknown'}
+              </Text>
+              
+              <View style={styles.modalButtonContainer}>
+                <TouchableOpacity 
+                  style={styles.connectButton}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    handleConnect(selectedUser?.userId);
+                  }}
+                >
+                  <Text style={styles.connectButtonText}>Connect</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.closeButton}
+                  onPress={() => setModalVisible(false)}
+                >
+                  <Text style={styles.closeButtonText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          </Animated.View>
+        </View>
+      </Modal>
+    </LinearGradient>
   );
 };
+
+// Custom Dark Map Style
+const mapStyle = [
+  { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
+  {
+    featureType: 'administrative.locality',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#d59563' }]
+  },
+  // Add more custom styling as needed
+];
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor:'white'
   },
-  map: {
-    height: "92%",
-    width: "100%",
-  },
-  loadingContainer: {
-    position: "absolute",
-    top: 200,
-    left: 0,
-    right: 0,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "white",
-    zIndex: 10,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 20,
-  },
-  noUsersText: {
-    position: "absolute",
-    bottom: 20,
-    alignSelf: "center",
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "gray",
+    paddingTop: 50,
+    backgroundColor: 'rgba(30,30,30,0.8)',
   },
   backButton: {
-    marginRight: 10,
-    top:32,
-    marginLeft:10
+    padding: 10,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: 'black',
-    flex: 1,
-    textAlign: 'center',
+    color: COLORS.text,
   },
-  darkText: {
-    color: '#FFF',
+  filterButton: {
+    padding: 10,
+  },
+  map: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: COLORS.text,
+    marginTop: 10,
   },
   profileImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     borderWidth: 2,
-    borderColor: "red", // Set red border for user images
+    borderColor: COLORS.primary,
   },
   modalContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)", // Dimmed background
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalContent: {
-    backgroundColor: "white",
-    padding: 20,
-    borderRadius: 10,
-    width: 300,
-    alignItems: "center",
+    width: width * 0.85,
+    borderRadius: 20,
+    overflow: 'hidden',
   },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 10,
+  modalGradient: {
+    alignItems: 'center',
+    padding: 20,
   },
   modalImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 2,
-    borderColor: "red",
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 3,
+    borderColor: COLORS.text,
     marginBottom: 15,
   },
-  modalDescription: {
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 5,
+  },
+  modalSubtitle: {
     fontSize: 16,
-    marginBottom: 15,
-    textAlign: "center",
+    color: COLORS.text,
+    opacity: 0.7,
+    marginBottom: 20,
+  },
+  modalButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
   },
   connectButton: {
-    backgroundColor: "blue",
-    paddingVertical: 12,
-    paddingHorizontal: 30,
+    flex: 1,
+    backgroundColor: COLORS.text,
+    padding: 15,
     borderRadius: 10,
-    marginBottom: 15,
+    marginRight: 10,
   },
   connectButtonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
+    color: COLORS.background,
+    textAlign: 'center',
+    fontWeight: 'bold',
   },
   closeButton: {
-    backgroundColor: "gray",
-    paddingVertical: 10,
-    paddingHorizontal: 25,
+    flex: 1,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: COLORS.text,
+    padding: 15,
     borderRadius: 10,
   },
   closeButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
+    color: COLORS.text,
+    textAlign: 'center',
+    fontWeight: 'bold',
   },
 });
 

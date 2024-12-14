@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = "http://192.168.95.81:5000/api/profile"; // Replace with your backend URL
+const BASE_URL = "http://192.168.145.81:5000/api/profile"; // Replace with your backend URL
 
 // Connect User API function
 const GetUserApi = async (userId: string) => {

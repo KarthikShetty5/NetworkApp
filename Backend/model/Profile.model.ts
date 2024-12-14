@@ -2,12 +2,12 @@ import mongoose, { Document, Schema, model } from "mongoose";
 
 export interface ProfileDocument extends Document {
   userId: string;
-  name: string;
+  name?: string;
   instagram?: string; // Optional field
   imageUrl?: string; // Optional field
   phone?: string; // Optional field
   email?: string; // Optional field
-  password: string; //
+  password?: string; //
   location: {
     longitude: number;
     latitude: number;
@@ -20,7 +20,7 @@ const profileSchema = new Schema<ProfileDocument>(
     name: { type: String, required: true, trim: true },
     instagram: { type: String, trim: true, default: null },
     imageUrl: { type: String, required:false },
-    password: { type: String, required:true},
+    password: { type: String, required:false},
     phone: {
       type: String,
       trim: true,

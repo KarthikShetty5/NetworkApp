@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const Profile = require("../model/Profile.model"); // Import the Profile model
+import Profile from "../model/Profile.model"; // Adjust the path to match your folder structure
 
 // POST /create-profile
 router.post("/create", async (req: { body: { userId: any; name: any; instagram: any; phone: any; email: any; location: any; }; }, res: { status: (arg0: number) => { (): any; new(): any; json: { (arg0: { success: boolean; message: string; data?: any; error?: any; }): void; new(): any; }; }; }) => {
@@ -215,7 +215,36 @@ router.post("/getconnections", async (req: any, res: any) => {
       });
     }
   });
-  
 
+  
+  // Route to update the location of a user
+router.put("/update", async (req: { body: { userId: any; location: any; }; }, res: { status: (arg0: number) => { (): any; new(): any; json: { (arg0: { message: string; profile?: any; }): void; new(): any; }; }; }) => {
+    const { userId, location } = req.body;
+
+    // Validate the input
+    if (!userId || !location) {
+      return res.status(400).json({ message: "Invalid input. Please provide userId and valid location." });
+    }
+  
+    try {
+      // Find the user by userId and update the location
+      const updatedProfile = await Profile.find({ userId });
+      updatedProfile[0].location = location;
+      const save  = await updatedProfile[0].save();
+
+      if (!updatedProfile) {
+        return res.status(404).json({ message: "User not found." });
+      }
+
+      res.status(200).json({
+        message: "Location updated successfully.",
+        profile: updatedProfile,
+      });
+    } catch (error) {
+      console.error("Error updating location:", error);
+      res.status(500).json({ message: "Internal server error." });
+    }
+  });
+  
 
 module.exports = router;

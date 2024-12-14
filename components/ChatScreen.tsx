@@ -1,22 +1,53 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Image } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import React, { useEffect, useState, useRef, useMemo } from "react";
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  FlatList, 
+  StyleSheet, 
+  Image, 
+  Platform,
+  Animated as RNAnimated,
+  KeyboardAvoidingView
+} from "react-native";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withSpring,
+} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import io from "socket.io-client";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const SOCKET_URL = "http://192.168.95.81:5000"; // Update with your backend URL
+// Color Palette
+const COLORS = {
+  background: '#121212',
+  primary: '#6A7AE8',
+  secondary: '#34D399',
+  text: '#E0E0E0',
+  messageBackground: '#1E1E1E',
+  inputBackground: '#2C2C2C'
+};
+
+const SOCKET_URL = "http://192.168.145.81:5000";
+
+interface Message {
+  sender: string;
+  receiver: string;
+  content: string;
+}
 
 const ChatScreen = ({ route, navigation }: any) => {
   const { contact, userId } = route.params;
-  interface Message {
-    sender: string;
-    receiver: string;
-    content: string;
-  }
-  
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [socket, setSocket] = useState<any>(null);
+  
+  // Animated values
+  const messageInputScale = useSharedValue(1);
+  const scrollY = useRef(new RNAnimated.Value(0)).current;
 
   useEffect(() => {
     // Initialize Socket.IO connection
@@ -35,22 +66,6 @@ const ChatScreen = ({ route, navigation }: any) => {
       newSocket.disconnect();
     };
   }, [userId, contact.id]);
-
-
-  useEffect(() => {
-    const checkUserId = async () => {
-      try {
-        const userId = await AsyncStorage.getItem('userId'); // Fetch userId from AsyncStorage
-        if (!userId) {
-          navigation.replace('SignUp'); 
-        }
-      } catch (error) {
-        console.error('Error checking userId:', error);
-      }
-    };
-
-    checkUserId();
-  }, [navigation]);
 
   const fetchMessages = async () => {
     try {
@@ -105,120 +120,227 @@ const ChatScreen = ({ route, navigation }: any) => {
     }
   };
 
-  const renderMessage = ({ item }: any) => (
-    <View
-      style={[
-        styles.messageBubble,
-        item.sender === userId ? styles.outgoingMessage : styles.incomingMessage,
-      ]}
-    >
-      <Text style={styles.messageText}>{item.content}</Text>
-    </View>
-  );
+  // Memoized render message function
+  const renderMessage = useMemo(() => {
+    return ({ item, index }: { item: Message, index: number }) => {
+      const isOutgoing = item.sender === userId;
+
+      return (
+        <View 
+          style={[
+            styles.messageBubble, 
+            isOutgoing ? styles.outgoingMessage : styles.incomingMessage,
+          ]}
+        >
+          <Text style={styles.messageText}>{item.content}</Text>
+        </View>
+      );
+    };
+  }, [userId]);
+
+  // Animated input style
+  const animatedInputStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ 
+        scale: withSpring(messageInputScale.value) 
+      }]
+    };
+  });
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#121212', '#1E1E1E', '#121212']}
+      style={styles.container}
+    >
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={30} color="#000" />
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()} 
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={30} color={COLORS.text} />
         </TouchableOpacity>
-        <Image source={{ uri: contact.imageUrl }} style={styles.profilePic} />
-        <Text style={styles.title}>{contact.name}</Text>
+        
+        <View style={styles.profileContainer}>
+          <Image 
+            source={{ uri: contact.imageUrl }} 
+            style={styles.profilePic} 
+          />
+          <View>
+            <Text style={styles.title}>{contact.name}</Text>
+            <Text style={styles.subtitle}>Active now</Text>
+          </View>
+        </View>
+        
+        <View style={styles.headerIcons}>
+          <TouchableOpacity>
+            <MaterialCommunityIcons 
+              name="phone" 
+              size={24} 
+              color={COLORS.secondary} 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity>
+            <MaterialCommunityIcons 
+              name="video" 
+              size={24} 
+              color={COLORS.primary} 
+            />
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Messages List */}
       <FlatList
         data={messages}
         renderItem={renderMessage}
         keyExtractor={(item, index) => index.toString()}
         style={styles.messageList}
+        onScroll={RNAnimated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
       />
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.textInput}
-          placeholder="Type a message"
-          value={newMessage}
-          onChangeText={setNewMessage}
-        />
-        <TouchableOpacity onPress={sendMessage} style={styles.sendButton}>
-          <Ionicons name="send" size={24} color="#FFF" />
-        </TouchableOpacity>
-      </View>
-    </View>
+
+      {/* Message Input */}
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.inputContainer}
+      >
+        <Animated.View 
+          style={[styles.inputWrapper, animatedInputStyle]}
+        >
+          <TouchableOpacity style={styles.attachButton}>
+            <Ionicons 
+              name="attach" 
+              size={24} 
+              color={COLORS.secondary} 
+            />
+          </TouchableOpacity>
+          
+          <TextInput
+            style={styles.textInput}
+            placeholder="Type a message..."
+            placeholderTextColor={COLORS.text}
+            value={newMessage}
+            onChangeText={setNewMessage}
+            onFocus={() => {
+              messageInputScale.value = 1.05;
+            }}
+            onBlur={() => {
+              messageInputScale.value = 1;
+            }}
+          />
+          
+          <TouchableOpacity 
+            onPress={sendMessage} 
+            style={styles.sendButton}
+          >
+            <LinearGradient
+              colors={[COLORS.primary, COLORS.secondary]}
+              style={styles.sendButtonGradient}
+            >
+              <Ionicons name="send" size={24} color="#FFF" />
+            </LinearGradient>
+          </TouchableOpacity>
+        </Animated.View>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    marginTop:30,
-    backgroundColor: "#f9f9f9",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     padding: 15,
-    backgroundColor: "#FFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEE",
-  },
-  profilePic: {
-    width: 40,
-    height: 40,
-    borderRadius: 25,
-    marginRight: 20,
-    marginLeft:10
+    paddingTop: 40,
+    backgroundColor: 'rgba(30,30,30,0.8)',
   },
   backButton: {
-    marginRight: 10,
+    marginRight: 15,
+  },
+  profileContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  profilePic: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 15,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
   },
   title: {
     fontSize: 18,
     fontWeight: "bold",
+    color: COLORS.text,
+  },
+  subtitle: {
+    fontSize: 12,
+    color: COLORS.secondary,
+  },
+  headerIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15,
   },
   messageList: {
     flex: 1,
-    marginTop:10,
     paddingHorizontal: 15,
+    backgroundColor: 'transparent',
   },
   messageBubble: {
     marginVertical: 5,
     padding: 10,
-    borderRadius: 10,
+    borderRadius: 15,
     maxWidth: "75%",
   },
   outgoingMessage: {
     alignSelf: "flex-end",
-    backgroundColor: "#4CAF50",
+    backgroundColor: COLORS.primary,
   },
   incomingMessage: {
     alignSelf: "flex-start",
-    backgroundColor: "purple",
+    backgroundColor: COLORS.messageBackground,
   },
   messageText: {
-    color: "#FFF",
+    color: COLORS.text,
+    fontSize: 16,
   },
   inputContainer: {
+    paddingBottom: 20,
+    paddingHorizontal: 15,
+  },
+  inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#EEE",
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.inputBackground,
+    borderRadius: 30,
+    paddingHorizontal: 10,
+  },
+  attachButton: {
+    marginRight: 10,
   },
   textInput: {
     flex: 1,
-    height: 40,
-    borderColor: "#CCC",
-    borderWidth: 1,
-    borderRadius: 20,
+    height: 50,
+    color: COLORS.text,
     paddingHorizontal: 10,
-    marginBottom:10
   },
   sendButton: {
-    marginLeft: 10,
-    backgroundColor: "#4CAF50",
+    borderRadius: 25,
+    overflow: 'hidden',
+  },
+  sendButtonGradient: {
     padding: 10,
-    borderRadius: 20,
-    marginBottom:10
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

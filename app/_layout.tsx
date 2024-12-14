@@ -16,6 +16,7 @@ import LoginScreen from '@/components/LoginScreen';
 import ChatScreen from '@/components/ChatScreen';
 import NotFoundScreen from './+not-found';
 import NotificationScreen from '@/components/NotifcationScreen';
+import TestScreen from '@/components/TestScreen';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();

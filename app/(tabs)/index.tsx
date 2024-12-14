@@ -1,14 +1,14 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import { Image, StyleSheet, Platform, View } from 'react-native';
 import HomeScreen from '@/components/HomeScreen';
 import MessagesScreen from '@/components/MessageScreen';
 
 export default function Index() {
   
   return (
-   <>
+   <View>
       <HomeScreen navigation={undefined} />
       {/* <MessagesScreen navigation={undefined}/> */}
-   </>
+   </View>
   );
 }
 

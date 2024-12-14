@@ -12,7 +12,7 @@ interface SignupPayload {
   };
 }
 
-const BASE_URL = "http://192.168.120.81:5000/api"; // Replace with your backend URL
+const BASE_URL = "http://192.168.145.81:5000/api"; // Replace with your backend URL
 
 const signupApi = async (payload: SignupPayload) => {
   try {

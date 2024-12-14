@@ -1,9 +1,47 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image, Modal, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { 
+  View, 
+  Text, 
+  FlatList, 
+  StyleSheet, 
+  TouchableOpacity, 
+  Image, 
+  Modal, 
+  Alert, 
+  Dimensions, 
+  Appearance 
+} from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withSpring 
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import GetUserApi from '@/app/api/GetUserApi';
 import GetRecentApi from '@/app/api/GetRecentApi';
+
+// Light and Dark Mode Colors
+const LightTheme = {
+  background: '#FFFFFF',
+  primary: '#6A7AE8',
+  secondary: '#34D399',
+  text: '#121212',
+  card: '#F0F0F0',
+  accent: '#FF6B6B',
+};
+
+const DarkTheme = {
+  background: '#121212',
+  primary: '#6A7AE8',
+  secondary: '#34D399',
+  text: '#E0E0E0',
+  card: '#1E1E1E',
+  accent: '#FF6B6B',
+};
+
+const { width } = Dimensions.get('window');
 
 interface Message {
   userId: string;
@@ -14,45 +52,43 @@ interface Message {
 }
 
 interface MessagesScreenProps {
-  navigation: any; // You can replace `any` with your navigation type if you're using TypeScript with React Navigation
+  navigation: any;
 }
 
 const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
-  
-  const [messages, setMessages] = useState<Message[]>();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [modalVisible, setModalVisible] = useState<boolean>(false);
   const [selectedContact, setSelectedContact] = useState<Message | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  const [isDarkMode, setIsDarkMode] = useState(
+    Appearance.getColorScheme() === 'dark'
+  );
+
+  const COLORS = isDarkMode ? DarkTheme : LightTheme;
+
+  // Animated values
+  const modalScale = useSharedValue(1);
+  const messageScale = useSharedValue(1);
 
   const fetchUserData = async () => {
-    const userId = '122345'; // Replace with dynamic userId fetching logic
-    if (!userId) {
-      Alert.alert("Error", "User not logged in.");
-      return;
-    }
-
+    const userId = '122345';
     try {
-      // Fetch user connections
       const userResult = await GetUserApi(userId);
       const connections = userResult.data;
-      
-      // Fetch recent messages
+
       const recentResult = await GetRecentApi(userId);
       const recentMessages = recentResult.recentMessages;
-      console.log(recentMessages)
 
-      // Merge connections with recent messages
       const mergedData = connections.map((connection: any) => {
         const recentMessage = recentMessages.find(
           (message: any) => message.connectionId === connection.userId
         );
-      
+
         return {
-          userId: connection.userId, // Assuming `userId` is the unique identifier
+          userId: connection.userId,
           name: connection.name,
           imageUrl: connection.imageUrl,
           lastMessage: recentMessage ? recentMessage.recentMessage : "Start the conversation now...",
-          time: "Just now", // Placeholder for time, replace as needed
+          time: recentMessage ? recentMessage.time : "Just now",
         };
       });
 
@@ -60,94 +96,117 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
     } catch (error) {
       Alert.alert("Error", "Failed to fetch user data.");
     }
-
-    setModalVisible(false);
-  };
-
-  useEffect(()=>{
-    fetchUserData();
-  },[])
-
-  const toggleTheme = (): void => {
-    setIsDarkMode(!isDarkMode);
-  };
-
-  const openMessage = async(contact: Message) => {
-    // const userId = '11223345'
-    const userId = '122345'
-    navigation.navigate("Chat", { contact, userId});
-  };
-
-  const handleMenuPress = (contact: Message): void => {
-    setSelectedContact(contact);
-    setModalVisible(true);
-  };
-
-  const handleBlock = (): void => {
-    console.log('Block contact:', selectedContact?.name);
-    setModalVisible(false);
   };
 
   useEffect(() => {
-    const checkUserId = async () => {
-      try {
-        const userId = await AsyncStorage.getItem('userId'); // Fetch userId from AsyncStorage
-        if (!userId) {
-          navigation.replace('SignUp'); 
-        }
-      } catch (error) {
-        console.error('Error checking userId:', error);
-      }
-    };
+    fetchUserData();
+    const subscription = Appearance.addChangeListener(({ colorScheme }) => {
+      setIsDarkMode(colorScheme === 'dark');
+    });
+    return () => subscription.remove();
+  }, []);
 
-    checkUserId();
-  }, [navigation]);
+  const openMessage = (contact: Message) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    navigation.navigate("Chat", { contact, userId: '122345' });
+  };
+
+  const handleMenuPress = (contact: Message) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSelectedContact(contact);
+    setModalVisible(true);
+    modalScale.value = withSpring(1.1);
+  };
+
+  // Animated Modal Style
+  const animatedModalStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: modalScale.value }],
+    };
+  });
+
+  // Animated Message Item Style
+  const animatedMessageStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: withSpring(messageScale.value) }],
+    };
+  });
 
   const renderItem = ({ item }: { item: Message }) => (
-    <TouchableOpacity onPress={() => openMessage(item)} style={[styles.messageItem, isDarkMode && styles.darkMessageItem]}>
-      <Image source={{ uri: item.imageUrl }} style={styles.profilePic} />
-      <View style={styles.messageInfo}>
-        <Text style={[styles.contactName, isDarkMode && styles.darkText]}>{item.name}</Text>
-        <Text style={[styles.lastMessage, isDarkMode && styles.darkText]}>{item.lastMessage}</Text>
-      </View>
-      
-      <View style={styles.actionButtons}>
-        <TouchableOpacity style={styles.callButton}>
-          <Ionicons name="call-outline" size={24} color={isDarkMode ? "#FFF" : "#4CAF50"} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.videoCallButton}>
-          <Ionicons name="videocam-outline" size={24} color={isDarkMode ? "#FFF" : "#4CAF50"} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => handleMenuPress(item)} style={styles.menuButton}>
-          <Ionicons name="ellipsis-horizontal" size={24} color={isDarkMode ? "#FFF" : "#333"} />
-        </TouchableOpacity>
-      </View>
+    <Animated.View style={animatedMessageStyle}>
+      <TouchableOpacity
+        onPress={() => openMessage(item)}
+        onPressIn={() => {
+          messageScale.value = 0.95;
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }}
+        onPressOut={() => {
+          messageScale.value = 1;
+        }}
+        style={[styles.messageItem, { backgroundColor: COLORS.card }]}
+      >
+        <LinearGradient
+          colors={[COLORS.card, COLORS.background]}
+          style={styles.messageGradient}
+        >
+          <View style={styles.profileContainer}>
+            <Image source={{ uri: item.imageUrl }} style={styles.profilePic} />
+            <View style={[styles.onlineIndicator, { backgroundColor: COLORS.secondary }]} />
+          </View>
 
-      {/* Time on the top-right corner */}
-      <Text style={[styles.messageTime, isDarkMode && styles.darkText]}>{item.time}</Text>
-    </TouchableOpacity>
+          <View style={styles.messageInfo}>
+            <Text style={[styles.contactName, { color: COLORS.text }]}>{item.name}</Text>
+            <Text style={[styles.lastMessage, { color: COLORS.text }]} numberOfLines={1}>
+              {item.lastMessage}
+            </Text>
+          </View>
+
+          <View style={styles.actionButtons}>
+            <TouchableOpacity style={styles.iconButton}>
+              <Ionicons name="call-outline" size={24} color='red' />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconButton}>
+              <Ionicons name="videocam" size={24} color={COLORS.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleMenuPress(item)} style={styles.iconButton}>
+              <Ionicons name="ellipsis-vertical-outline" size={24} color={COLORS.text} />
+            </TouchableOpacity>
+          </View>
+
+          {/* <Text style={[styles.messageTime, { color: COLORS.text }]}>{item.time}</Text> */}
+        </LinearGradient>
+      </TouchableOpacity>
+    </Animated.View>
   );
 
   return (
-    <View style={[styles.container, isDarkMode && styles.darkContainer]}>
+    <LinearGradient
+      colors={[COLORS.background, COLORS.background, COLORS.background]}
+      style={styles.container}
+    >
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={30} color={isDarkMode ? '#FFF' : '#000'} />
+          <Ionicons name="arrow-back" size={30} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={[styles.title, isDarkMode && styles.darkText]}>Messages</Text>
-        
-        <TouchableOpacity onPress={toggleTheme} style={styles.themeButton}>
-          <Ionicons name={isDarkMode ? 'sunny-outline' : 'moon-outline'} size={30} color={isDarkMode ? '#FFF' : '#000'} />
+
+        <Text style={[styles.title, { color: COLORS.text }]}>Messages</Text>
+
+        <TouchableOpacity onPress={() => setIsDarkMode(!isDarkMode)}>
+          <Ionicons name={isDarkMode ? "sunny" : "moon"} size={24} color={COLORS.text} />
         </TouchableOpacity>
       </View>
 
+      {/* Messages List */}
       <FlatList
         data={messages}
         renderItem={renderItem}
         keyExtractor={(item) => item.userId}
+        contentContainerStyle={styles.listContainer}
+        showsVerticalScrollIndicator={false}
       />
 
-      {/* Modal for blocking contact */}
+      {/* Options Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -155,75 +214,84 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalBackground}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Options for {selectedContact?.name}</Text>
-            <TouchableOpacity onPress={handleBlock} style={styles.modalButton}>
-              <Text style={styles.modalButtonText}>Block</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.modalButton}>
-              <Text style={styles.modalButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
+          <Animated.View style={[styles.modalContainer, animatedModalStyle]}>
+            <LinearGradient colors={[COLORS.primary, COLORS.secondary]} style={styles.modalGradient}>
+              <Text style={[styles.modalTitle, { color: COLORS.text }]}>
+                Options for {selectedContact?.name}
+              </Text>
+
+              <View style={styles.modalButtonContainer}>
+                <TouchableOpacity style={styles.modalButton}>
+                  <MaterialCommunityIcons name="block-helper" size={24} color={COLORS.text} />
+                  <Text style={[styles.modalButtonText, { color: COLORS.text }]}>Block</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.modalButton}>
+                  <MaterialCommunityIcons name="delete" size={24} color={COLORS.text} />
+                  <Text style={[styles.modalButtonText, { color: COLORS.text }]}>Delete</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.modalButton}>
+                  <MaterialCommunityIcons name="close" size={24} color={COLORS.text} />
+                  <Text style={[styles.modalButtonText, { color: COLORS.text }]}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          </Animated.View>
         </View>
       </Modal>
-    </View>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 30,
-    paddingHorizontal: 20,
-    backgroundColor: '#f9f9f9',
-  },
-  darkContainer: {
-    backgroundColor: '#121212',
+    paddingTop: 40,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
     marginBottom: 20,
   },
-  backButton: {
-    marginRight: 10,
-  },
+  backButton: {},
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
-    flex: 1,
-    textAlign: 'center',
   },
-  darkText: {
-    color: '#FFF',
-  },
-  themeButton: {
-    position: 'absolute',
-    right: 10,
-    top: 5,
+  listContainer: {
+    paddingHorizontal: 20,
   },
   messageItem: {
-    flexDirection: 'row',
-    padding: 15,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    marginVertical: 8,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
-    position: 'relative', // To position the time on the top-right
+    marginBottom: 15,
+    borderRadius: 20,
+    overflow: 'hidden',
   },
-  darkMessageItem: {
-    backgroundColor: '#333',
+  messageGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+  },
+  profileContainer: {
+    position: 'relative',
+    marginRight: 15,
   },
   profilePic: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 15,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
+  },
+  onlineIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 15,
+    height: 15,
+    borderRadius: 7.5,
+    borderWidth: 2,
   },
   messageInfo: {
     flex: 1,
@@ -231,60 +299,57 @@ const styles = StyleSheet.create({
   contactName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
   },
   lastMessage: {
     fontSize: 14,
-    color: '#777',
-    marginTop: 5,
+    opacity: 0.7,
   },
   actionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  callButton: {
-    marginRight: 15,
+  iconButton: {
+    marginHorizontal: 5,
   },
-  videoCallButton: {
-    marginRight: 15,
-  },
-  menuButton: {},
   messageTime: {
     position: 'absolute',
     top: 10,
-    right: 15,
+    right: 10,
     fontSize: 12,
-    color: '#999',
+    opacity: 0.5,
   },
   modalBackground: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalContainer: {
-    backgroundColor: 'white',
+    width: width * 0.85,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  modalGradient: {
     padding: 20,
-    borderRadius: 10,
-    width: '80%',
     alignItems: 'center',
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 15,
+    marginBottom: 20,
+  },
+  modalButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
   },
   modalButton: {
-    backgroundColor: '#4CAF50',
-    padding: 10,
-    borderRadius: 5,
-    width: '100%',
-    marginBottom: 10,
     alignItems: 'center',
+    padding: 10,
   },
   modalButtonText: {
-    color: 'white',
-    fontSize: 16,
+    fontSize: 14,
+    marginTop: 5,
   },
 });
 
