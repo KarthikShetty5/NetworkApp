@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Network",
+    "name": "Fleeko",
     "slug": "my-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,14 +10,14 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.karthikshetty55.network"
+      "bundleIdentifier": "com.karthikshetty55.fleeko"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.karthikshetty55.network"
+      "package": "com.karthikshetty55.fleeko"
     },
     "web": {
       "bundler": "metro",

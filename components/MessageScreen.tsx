@@ -9,7 +9,8 @@ import {
   Modal, 
   Alert, 
   Dimensions, 
-  Appearance 
+  Appearance, 
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -59,6 +60,7 @@ interface MessagesScreenProps {
 const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [modalVisible, setModalVisible] = useState<boolean>(false);
+  const [loading, setLoading] = useState(true);
   const [selectedContact, setSelectedContact] = useState<Message | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(
     Appearance.getColorScheme() === 'dark'
@@ -115,8 +117,10 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
       });
 
       setMessages(mergedData);
+      setLoading(false);
     } catch (error) {
       Alert.alert("Error", "Failed to fetch user data.");
+      setLoading(false);
     }
   };
 
@@ -221,15 +225,20 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
       </View>
 
       {/* Messages List */}
-      <FlatList
+      {loading ? (
+        <ActivityIndicator size="large" color="#a77bf1" />
+      ) : (
+        <FlatList
         data={messages}
         renderItem={renderItem}
         keyExtractor={(item) => item.userId}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
       />
+      )}
+      
       {
-        messages.length === 0 && (
+        !loading && messages.length === 0 && (
           <View style={{ flex: 10, justifyContent: 'center', alignItems: 'center' }}>
             <Text style={{ color: COLORS.secondary }}>No messages found</Text>
             <Text style={{ color: COLORS.primary }}>Start Connecting with Friends.....</Text>
