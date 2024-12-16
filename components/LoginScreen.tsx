@@ -54,8 +54,8 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
       if (response.success) {
         // Store user ID
         await AsyncStorage.setItem(
-          'userId',
-          response.data?.userId || "dummy"
+          "userId",
+          response.data?.userId || '122345'
         );
 
         // Haptic feedback for success

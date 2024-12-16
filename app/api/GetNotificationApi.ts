@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = "http://192.168.145.81:5000/api/track"; // Replace with your backend URL
+const BASE_URL = "http://192.168.165.81:5000/api/notifications"; // Replace with your backend URL
 
 const getNotification = async (userId:string) =>{
     try {
@@ -42,4 +42,18 @@ const declineNotification = async (notificationId:string, userId:string) => {
   }
 };
 
-export { acceptNotification, declineNotification, getNotification };
+// Send Notification API function
+const sendNotification = async (connectId:string, message: string, userId: string, viewed:boolean, tag:string) => {
+  try {
+    // Sending a POST request to the backend to accept the notification
+    const response = await axios.post(`${BASE_URL}/send`, { connectId, userId, message, viewed, tag });
+
+    // Returning the response from the backend
+    return response.data;
+  } catch (error) {
+    console.error("Error accepting notification", error);
+    throw error;
+  }
+};
+
+export { acceptNotification, declineNotification, getNotification, sendNotification };

@@ -146,13 +146,32 @@
 // export default ProfileScreen;
 
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import React from 'react'
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import React, { useEffect } from 'react'
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
-const ProfileScreen = () => {
+
+const ProfileScreen: React.FC<{ navigation: any }> = ({navigation}) => {
+
+  useEffect(() => {
+    const checkUserId = async () => {
+      try {
+        const userId = await AsyncStorage.getItem('userId'); // Fetch userId from AsyncStorage
+        if (!userId) {
+          navigation.replace('SignUp'); 
+        }
+      } catch (error) {
+        console.error('Error checking userId:', error);
+      }
+    };
+
+    checkUserId();
+  }, [navigation]);
+
   const handleClcik = async()=>{
     const val = await AsyncStorage.removeItem('userId');
-    console.log(val)
+    Alert.alert('Success', 'Logged Out Successfully!');
+    navigation.replace('SignUp');
+    // console.log(val)
   }
   return (
     <View>

@@ -21,6 +21,7 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import GetUserApi from '@/app/api/GetUserApi';
 import GetRecentApi from '@/app/api/GetRecentApi';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Light and Dark Mode Colors
 const LightTheme = {
@@ -63,6 +64,21 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
     Appearance.getColorScheme() === 'dark'
   );
 
+  useEffect(() => {
+    const checkUserId = async () => {
+      try {
+        const userId = await AsyncStorage.getItem('userId'); // Fetch userId from AsyncStorage
+        if (!userId) {
+          navigation.replace('SignUp'); 
+        }
+      } catch (error) {
+        console.error('Error checking userId:', error);
+      }
+    };
+
+    checkUserId();
+  }, [navigation]);
+
   const COLORS = isDarkMode ? DarkTheme : LightTheme;
 
   // Animated values
@@ -70,7 +86,13 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
   const messageScale = useSharedValue(1);
 
   const fetchUserData = async () => {
-    const userId = '122345';
+    const userId = await AsyncStorage.getItem("userId");
+
+    if(!userId){
+          Alert.alert("Error", "User not logged in.");
+          return;
+    }
+
     try {
       const userResult = await GetUserApi(userId);
       const connections = userResult.data;
@@ -107,8 +129,9 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
   }, []);
 
   const openMessage = (contact: Message) => {
+    const userId = AsyncStorage.getItem('userId');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.navigate("Chat", { contact, userId: '122345' });
+    navigation.navigate("Chat", { contact, userId});
   };
 
   const handleMenuPress = (contact: Message) => {
@@ -205,6 +228,15 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
       />
+      {
+        messages.length === 0 && (
+          <View style={{ flex: 10, justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={{ color: COLORS.secondary }}>No messages found</Text>
+            <Text style={{ color: COLORS.primary }}>Start Connecting with Friends.....</Text>
+            <Ionicons style={{ color: COLORS.text, marginTop:20 }} name="map-sharp" size={100} onPress={()=>navigation.navigate('Map')} />
+          </View>
+        )
+      }
 
       {/* Options Modal */}
       <Modal

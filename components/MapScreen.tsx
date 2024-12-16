@@ -48,6 +48,21 @@ const Map: React.FC<MapScreenProps> = ({ navigation }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
 
+   useEffect(() => {
+    const checkUserId = async () => {
+      try {
+        const userId = await AsyncStorage.getItem('userId'); // Fetch userId from AsyncStorage
+        if (!userId) {
+          navigation.replace('SignUp'); 
+        }
+      } catch (error) {
+        console.error('Error checking userId:', error);
+      }
+    };
+
+    checkUserId();
+  }, [navigation]);
+
   // Animated values
   const modalScale = useSharedValue(1);
   const markerScale = useSharedValue(1);

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "my-app",
+    "name": "Network",
     "slug": "my-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -17,7 +17,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.karthikshetty55.myapp"
+      "package": "com.karthikshetty55.network"
     },
     "web": {
       "bundler": "metro",

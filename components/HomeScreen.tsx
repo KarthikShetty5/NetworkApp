@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState,useCallback, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -22,8 +22,13 @@ import Animated, {
   interpolate,
   Extrapolate
 } from 'react-native-reanimated';
+import * as Location from "expo-location";
+import UpdateLocationApi from "@/app/api/UpdateLocationApi";
 import GetUserApi from '@/app/api/GetUserApi';
 import GetRecentApi from '@/app/api/GetRecentApi';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getNotification, sendNotification } from '@/app/api/GetNotificationApi';
+import getNearbyUsersApi, { NearbyUsersPayload } from '@/app/api/TrackApi';
 
 // Color Palette
 const COLORS = {
@@ -58,6 +63,17 @@ interface HomeScreenProps {
   navigation: any; // You can replace `any` with your navigation type if you're using TypeScript with React Navigation
 }
 
+interface LocationProps {
+  coords: {
+    latitude: number;
+    longitude: number;
+    altitude?: number | null;
+    accuracy?: number | null;
+    heading?: number | null;
+    speed?: number | null;
+  };
+}
+
 const { width, height } = Dimensions.get('window');
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
@@ -65,12 +81,205 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [selectedTab, setSelectedTab] = useState('home');
   const cardScale = useSharedValue(1);
   const [recentlyInteracted, setRecentlyInteracted] = useState<Message[]>([]);
+  const [location, setLocation] = useState<LocationProps | null>(null);
+  const previousLocationRef = useRef<LocationProps | null>(null);
+  const locationWatcherRef = useRef<Location.LocationSubscription | null>(null); 
+  const locationUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [notificationCount, setNotificationCount] = useState(0); // Set this dynamically
+
+  const fetchAndSendUserRequests = async (location: NearbyUsersPayload) => {
+    if(!location) return;
+    try {
+      // Retrieve current userId from storage
+      const currentUserId = await AsyncStorage.getItem("userId");
+      if (!currentUserId) {
+        throw new Error("Current user is not logged in.");
+      }
+  
+      // Fetch nearby users
+      const response = await getNearbyUsersApi(location);
+      if (!response.success) {
+        throw new Error(response.message || "Failed to retrieve users.");
+      }
+  
+      const nearbyUsers = response.data;
+      if (!Array.isArray(nearbyUsers)) {
+        throw new Error("Invalid user data format.");
+      }
+  
+      // Filter out the current user
+      const filteredUsers = nearbyUsers.filter((user:any) => user.userId !== currentUserId);
+  
+      // Send requests for each remaining user
+      for (const user of filteredUsers) {
+        try {
+          // Fetch existing notifications for the current user
+          const notifications = await getNotification(currentUserId);
+  
+          // Check if a 'Connect' notification exists and was viewed
+          const connectNotification = notifications.find(
+            (notif: { tag: string; connectId: number; viewed: any; }) => notif.tag == "Connect" &&  notif.connectId === user.userId && !notif.viewed
+          );
+            
+          if (!connectNotification) {
+            // Send a new notification
+            const requestResponse = await sendNotification(
+              user.userId.toString(),
+              `${user.name} is found nearby, want to connect :-)`,
+              currentUserId,
+              false,
+              "Connect"
+            );
+            } else {
+            console.log(`Notification for ${user.name} has already been sent and viewed.`);
+          }
+        } catch (error:any) {
+          console.error(`Error processing user ${user.name}:`, error.message || error);
+        }
+      }
+  
+      return filteredUsers; // Return the filtered list of users (excluding the current user)
+    } catch (error:any) {
+      console.error("Error in fetchAndSendUserRequests:", error.message || error);
+      throw error;
+    }
+  };
+
+  useEffect(()=>{
+    const fetchNotifications = async ()=>{
+      try{
+        const userId = await AsyncStorage.getItem('userId');
+        if(userId){
+          const response = await getNotification(userId)
+          console.log(response)
+          setNotificationCount(response.length);
+        }
+      }catch(err){
+        console.error(err);
+      }
+    }
+    fetchNotifications();
+  },[])
+
+
+  const fetchLocation = useCallback(async () => {
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission Denied", "Location permissions are required.");
+        return;
+      }
+
+      // Stop any existing watcher
+      if (locationWatcherRef.current) {
+        locationWatcherRef.current.remove();
+      }
+
+      // Start watching location changes with optimized options
+      locationWatcherRef.current = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.Balanced, // More battery-efficient
+          timeInterval: 10000, // Update every 10 seconds
+          distanceInterval: 10, // Update every 50 meters
+        },
+        (newLocation) => {
+          const newLocationData: LocationProps = {
+            coords: {
+              latitude: newLocation.coords.latitude,
+              longitude: newLocation.coords.longitude,
+            },
+          };
+          setLocation(prevLocation => {
+            // Only update if location has significantly changed
+            if (!prevLocation || 
+                Math.abs(prevLocation.coords.latitude - newLocationData.coords.latitude) > 0.0000000001 ||
+                Math.abs(prevLocation.coords.longitude - newLocationData.coords.longitude) > 0.0000000001
+            ) {
+              return newLocationData;
+            }
+            return prevLocation;
+          });
+        }
+      );
+    } catch (error) {
+      console.error("Error fetching location:", error);
+    }
+  }, []);
+
+  const updateLocation = useCallback(async () => {
+    const userId = await AsyncStorage.getItem("userId");
+
+    if (!location || !userId) return;
+
+    // Check if the location has changed significantly
+    const hasLocationChanged = !previousLocationRef.current || 
+      Math.abs(location.coords.latitude - previousLocationRef.current.coords.latitude) > 0.0000000001 ||
+      Math.abs(location.coords.longitude - previousLocationRef.current.coords.longitude) > 0.0000000001;
+
+    if (!hasLocationChanged) {
+      console.log("Location unchanged, skipping update.");
+      return;
+    }
+
+    try{
+      // Fetch nearby users and send requests for connections
+      await fetchAndSendUserRequests(location.coords);
+    }catch(e){
+      console.error(e);
+    }
+
+    try {
+      console.log("Updating location to backend:", location.coords);
+      await UpdateLocationApi(userId, location.coords);
+      previousLocationRef.current = location; // Save the current location as the previous location
+    } catch (error) {
+      console.error("Failed to update location:", error);
+    }
+  }, [location]);
+
+  const startLocationUpdates = useCallback(() => {
+    // Clear any existing timeout
+    if (locationUpdateTimeoutRef.current) {
+      clearTimeout(locationUpdateTimeoutRef.current);
+    }
+
+    const updateLoop = async () => {
+      try {
+        await updateLocation();
+      } catch (error) {
+        console.error("Error in update loop:", error);
+      }
+
+      // Schedule the next update with a more robust approach
+      locationUpdateTimeoutRef.current = setTimeout(updateLoop, 30000);
+    };
+
+    updateLoop(); // Start the first update
+  }, [updateLocation]);
+
+  useEffect(() => {
+    // Separate concerns: location fetching and updates
+    fetchLocation();
+    const updateInterval = startLocationUpdates();
+
+    // Cleanup on component unmount
+    return () => {
+      if (locationWatcherRef.current) {
+        locationWatcherRef.current.remove();
+      }
+      if (locationUpdateTimeoutRef.current) {
+        clearTimeout(locationUpdateTimeoutRef.current);
+      }
+    };
+  }, []); // Empty dependency array to run only once
   
    // Animated values
    const fadeAnim = useSharedValue(0);
+   
   // Fetch User Data
   const fetchUserData = async () => {
-    const userId = '122345';
+    const userId = await AsyncStorage.getItem("userId");
+
     if (!userId) {
       Alert.alert("Error", "User not logged in.");
       return;
@@ -159,10 +368,34 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   };
 
   const openMessage = async(contact:Message) => {
-    // const userId = '11223345'
-    const userId = '122345'
-    navigation.navigate("Chat", { contact, userId});
+    try {
+      const userId = await AsyncStorage.getItem("userId");
+      navigation.navigate("Chat", { contact, userId});
+    }
+    catch (e){
+      console.error(e);
+    }
   };
+
+  useEffect(() => {
+    const checkUserId = async () => {
+      try {
+        const userId = await AsyncStorage.getItem('userId'); // Fetch userId from AsyncStorage
+        if (!userId) {
+          navigation.replace('SignUp'); 
+        }
+      } catch (error) {
+        console.error('Error checking userId:', error);
+      }
+    };
+
+    checkUserId();
+  }, [navigation]);
+
+  const handleClick = (tab: string) => {
+    setSelectedTab(tab.toLowerCase())
+    navigation.navigate(tab);
+  }
 
   // Color Scheme
   const theme = isDarkMode ? COLORS.dark : COLORS.light;
@@ -414,34 +647,44 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
       {/* Bottom Navigation */}
       <View style={[styles.bottomNav, { backgroundColor: theme.card }]}>
-        {['Home', 'Explore', 'Connections', 'Profile'].map((tab, index) => (
-          <TouchableOpacity 
-            key={index} 
-            style={styles.bottomNavItem}
-            onPress={() => setSelectedTab(tab.toLowerCase())}
-          >
+      {['Home', 'Notification', 'Connections', 'Profile'].map((tab, index) => (
+        <TouchableOpacity 
+          key={index} 
+          style={styles.bottomNavItem}
+          onPress={() => {
+            handleClick(tab);
+            setSelectedTab(tab.toLowerCase());
+          }}
+        >
+          <View style={styles.iconContainer}>
             <Ionicons 
               name={
                 tab === 'Home' ? 'home' :
-                tab === 'Explore' ? 'compass' :
+                tab === 'Notification' ? 'notifications' :
                 tab === 'Connections' ? 'people' :
                 'person'
               } 
               size={24} 
               color={selectedTab === tab.toLowerCase() ? theme.primary : theme.secondary} 
             />
-            <Text 
-              style={{
-                color: selectedTab === tab.toLowerCase() ? theme.primary : theme.secondary,
-                fontSize: 10,
-                marginTop: 5
-              }}
-            >
-              {tab}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+            {tab === 'Notification' && notificationCount >= 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{notificationCount}</Text>
+              </View>
+            )}
+          </View>
+          <Text 
+            style={{
+              color: selectedTab === tab.toLowerCase() ? theme.primary : theme.secondary,
+              fontSize: 10,
+              marginTop: 5
+            }}
+          >
+            {tab}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
     </LinearGradient>
   );
 };
@@ -452,6 +695,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     paddingTop: Platform.OS === 'ios' ? 50 : 30,
+  },
+  bottomNavItem: {
+    alignItems: 'center',
+  },
+  iconContainer: {
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    width: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   searchContainer: {
     flex: 1,
@@ -513,9 +778,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 20,
-  },
-  bottomNavItem: {
-    alignItems: 'center',
+    alignItems: 'center'
   },
   recentInteractionSection: {
     marginVertical: 20,

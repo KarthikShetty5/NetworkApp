@@ -20,6 +20,7 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import io from "socket.io-client";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Color Palette
 const COLORS = {
@@ -31,7 +32,7 @@ const COLORS = {
   inputBackground: '#2C2C2C'
 };
 
-const SOCKET_URL = "http://192.168.145.81:5000";
+const SOCKET_URL = "http://192.168.165.81:5000";
 
 interface Message {
   sender: string;
@@ -146,6 +147,21 @@ const ChatScreen = ({ route, navigation }: any) => {
       }]
     };
   });
+
+  useEffect(() => {
+    const checkUserId = async () => {
+      try {
+        const userId = await AsyncStorage.getItem('userId'); // Fetch userId from AsyncStorage
+        if (!userId) {
+          navigation.replace('SignUp'); 
+        }
+      } catch (error) {
+        console.error('Error checking userId:', error);
+      }
+    };
+
+    checkUserId();
+  }, [navigation]);
 
   return (
     <LinearGradient
