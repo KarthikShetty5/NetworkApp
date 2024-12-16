@@ -32,7 +32,7 @@ const COLORS = {
   inputBackground: '#2C2C2C'
 };
 
-const SOCKET_URL = "http://192.168.165.81:5000";
+const SOCKET_URL = "https://network-backend-7dxw.onrender.com";
 
 interface Message {
   sender: string;

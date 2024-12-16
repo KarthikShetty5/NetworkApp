@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = "http://192.168.165.81:5000/api/track"; // Replace with your backend URL
+const BASE_URL = "https://network-backend-7dxw.onrender.com/api/track"; // Replace with your backend URL
 
 // Connect User API function
 const GetUserApi = async (userId: string) => {

@@ -12,7 +12,7 @@ interface SignupPayload {
   };
 }
 
-const BASE_URL = "http://192.168.165.81:5000/api"; // Replace with your backend URL
+const BASE_URL = "https://network-backend-7dxw.onrender.com/api"; // Replace with your backend URL
 
 const signupApi = async (payload: SignupPayload) => {
   try {
