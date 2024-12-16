@@ -18,7 +18,6 @@ import NotFoundScreen from './+not-found';
 import NotificationScreen from '@/components/NotifcationScreen';
 import TestScreen from '@/components/TestScreen';
 import ConnectionScreen from '@/components/ConnectionScreen';
-import Test from '@/components/Test';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -49,7 +48,7 @@ export default function RootLayout() {
             headerShown: false,
           }}
         >
-        <Stack.Screen name="Home" component={Test} />
+        <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Messages" component={MessagesScreen} />
         <Stack.Screen name="Notification" component={NotificationScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
