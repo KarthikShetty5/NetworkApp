@@ -177,7 +177,7 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
           style={styles.messageGradient}
         >
           <View style={styles.profileContainer}>
-            <Image source={{ uri: item.imageUrl }} style={styles.profilePic} />
+            <Image source={{ uri: item.imageUrl ? item.imageUrl : "https://cdn2.iconfinder.com/data/icons/business-hr-and-recruitment/100/account_blank_face_dummy_human_mannequin_profile_user_-1024.png" }} style={styles.profilePic} />
             <View style={[styles.onlineIndicator, { backgroundColor: COLORS.secondary }]} />
           </View>
 

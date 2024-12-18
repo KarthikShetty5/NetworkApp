@@ -87,21 +87,33 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const locationUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [notificationCount, setNotificationCount] = useState(0); // Set this dynamically
 
-
-  useEffect(()=>{
-    const fetchNotifications = async ()=>{
-      try{
-        const userId = await AsyncStorage.getItem('userId');
-        if(userId){
-          const response = await getNotification(userId)
-          setNotificationCount(response.length);
-        }
-      }catch(err){
-        console.error(err);
+  const fetchNotifications = async () => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      if (userId) {
+        const response = await getNotification(userId); // Assuming getNotification fetches notifications
+        const unreadNotifications = response.filter((notification: { viewed: any; }) => !notification.viewed); // Filter for `viewed: false`
+        setNotificationCount(unreadNotifications.length); // Update state with count of unread notifications
       }
+    } catch (err) {
+      console.error(err);
     }
-    fetchNotifications();
-  },[])
+  };
+  
+  useEffect(() => {
+    let intervalId:any;
+  
+    const init = async () => {
+      await fetchNotifications(); // Initial call when the app mounts
+      intervalId = setInterval(fetchNotifications, 20000); // Call every 20 seconds
+    };
+  
+    init();
+  
+    return () => {
+      if (intervalId) clearInterval(intervalId); // Cleanup interval on component unmount
+    };
+  }, []);
   
   const fetchAndSendUserRequests = async (location: NearbyUsersPayload) => {
     if(!location) {
@@ -209,7 +221,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
   }, []);
 
-
   const updateLocation = useCallback(async () => {
     // const userId = await AsyncStorage.getItem("userId");
     const userId = '122345';
@@ -269,26 +280,25 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     updateLoop(); // Start the first update
   }, [updateLocation]);
 
-  useEffect(() => {
-    fetchLocation();
-    startLocationUpdates();
+  // useEffect(() => {
+  //   fetchLocation();
+  //   startLocationUpdates();
   
-    return () => {
-      // Stop the location watcher
-      if (locationWatcherRef.current) {
-        locationWatcherRef.current.remove();
-        locationWatcherRef.current = null;
-      }
+  //   return () => {
+  //     // Stop the location watcher
+  //     if (locationWatcherRef.current) {
+  //       locationWatcherRef.current.remove();
+  //       locationWatcherRef.current = null;
+  //     }
   
-      // Clear the timeout
-      if (locationUpdateTimeoutRef.current) {
-        clearTimeout(locationUpdateTimeoutRef.current);
-        locationUpdateTimeoutRef.current = null;
-      }
-    };
-  }, [fetchLocation, startLocationUpdates]);
+  //     // Clear the timeout
+  //     if (locationUpdateTimeoutRef.current) {
+  //       clearTimeout(locationUpdateTimeoutRef.current);
+  //       locationUpdateTimeoutRef.current = null;
+  //     }
+  //   };
+  // }, [fetchLocation, startLocationUpdates]);
   
-
   const fadeAnim = useSharedValue(0);
    
   // Fetch User Data
@@ -339,7 +349,18 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   // Lifecycle
   useEffect(() => {
-    fetchUserData();
+    let intervalId:any;
+  
+    const init = async () => {
+      await fetchNotifications(); // Initial call when the app mounts
+      intervalId = setInterval(fetchUserData, 20000); // Call every 20 seconds
+    };
+  
+    init();
+  
+    return () => {
+      if (intervalId) clearInterval(intervalId); // Cleanup interval on component unmount
+    };
   }, []);
 
   // Toggle Dark Mode
@@ -543,7 +564,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             >
               <View style={recentInteractionStyles.profileCircle}>
                 <Image 
-                  source={{ uri: interaction.imageUrl }} 
+                  source={{ uri: interaction.imageUrl ? interaction.imageUrl : "https://cdn2.iconfinder.com/data/icons/business-hr-and-recruitment/100/account_blank_face_dummy_human_mannequin_profile_user_-1024.png"}} 
                   style={recentInteractionStyles.profileImage} 
                 />
                 {interaction.isActive && (

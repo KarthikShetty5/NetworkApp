@@ -7,7 +7,8 @@ import {
   TouchableOpacity, 
   Alert, 
   Dimensions,
-  useColorScheme
+  useColorScheme,
+  ActivityIndicator
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -65,6 +66,7 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
   // Use color scheme to determine initial theme
   const colorScheme = useColorScheme();
   const [isDarkMode, setIsDarkMode] = useState(colorScheme === 'dark');
+  const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   
   // Animated values
@@ -118,8 +120,10 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
         const data = await getNotification(userId);
         const unreadNotifications = data.filter((notification: Notification) => !notification.viewed);
         setNotifications(unreadNotifications);
+        setLoading(false);
       } catch (err) {
         console.error('Failed to fetch notifications:', err);
+        setLoading(false);
       }
     };
 
@@ -277,7 +281,11 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
       </View>
 
       {/* Notifications List */}
-      <FlatList
+
+      {loading ? (
+        <ActivityIndicator size="large" color="#a77bf1" />
+      ) : (
+        <FlatList
         data={notifications}
         renderItem={({ item }) => <NotificationItem item={item} />}
         keyExtractor={(item) => item._id}
@@ -295,6 +303,8 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
           </View>
         }
       />
+      )}
+     
     </LinearGradient>
   );
 };

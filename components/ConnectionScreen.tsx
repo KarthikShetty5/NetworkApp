@@ -105,7 +105,7 @@ const ConnectionScreen = ({ navigation }: { navigation: any }) => {
         { backgroundColor: isDarkMode ? "#1E2A3A" : "#F5F5F5" },
       ]}
     >
-      <Image source={{ uri: user.imageUrl }} style={styles.profileImage} />
+      <Image source={{ uri: user.imageUrl ? user.imageUrl : "https://cdn2.iconfinder.com/data/icons/business-hr-and-recruitment/100/account_blank_face_dummy_human_mannequin_profile_user_-1024.png" }} style={styles.profileImage} />
       <View style={styles.details}>
         <Text
           style={[styles.name, { color: isDarkMode ? "#a77bf1" : "#333" }]}

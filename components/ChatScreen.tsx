@@ -168,6 +168,7 @@ const ChatScreen = ({ route, navigation }: any) => {
       colors={['#121212', '#1E1E1E', '#121212']}
       style={styles.container}
     >
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
@@ -179,7 +180,7 @@ const ChatScreen = ({ route, navigation }: any) => {
         
         <View style={styles.profileContainer}>
           <Image 
-            source={{ uri: contact.imageUrl }} 
+            source={{ uri: contact.imageUrl ? contact.imageUrl : 'https://cdn2.iconfinder.com/data/icons/business-hr-and-recruitment/100/account_blank_face_dummy_human_mannequin_profile_user_-1024.png'}} 
             style={styles.profilePic} 
           />
           <View>
