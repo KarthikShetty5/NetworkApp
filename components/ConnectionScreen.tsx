@@ -6,10 +6,9 @@ import {
   FlatList,
   TouchableOpacity,
   Image,
-  Linking,
   Alert,
   ActivityIndicator,
-  Modal,
+  Linking,
 } from "react-native";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import Animated, {
@@ -34,10 +33,7 @@ const ConnectionScreen = ({ navigation }: { navigation: any }) => {
   const [connections, setConnections] = useState<Connections[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [isModalVisible, setIsModalVisible] = useState(false); // Modal visibility state
-  const [selectedUser, setSelectedUser] = useState<Connections | null>(null); // Store the selected user
 
-  // Fetch connections from API
   useEffect(() => {
     const fetchConnections = async () => {
       try {
@@ -63,26 +59,13 @@ const ConnectionScreen = ({ navigation }: { navigation: any }) => {
     fetchConnections();
   }, []);
 
-  const navigateToChat = async (contact: any) => {
+  const navigateToChat = async (contact: Connections) => {
     const userId = await AsyncStorage.getItem("userId");
     navigation.navigate("Chat", { contact, userId });
   };
 
-  // Toggle theme
   const toggleTheme = () => {
     setIsDarkMode((prevMode) => !prevMode);
-  };
-
-  // Handle card click to show the modal with user details
-  const handleCardClick = (user: Connections) => {
-    setSelectedUser(user);
-    setIsModalVisible(true); // Open the modal when a card is clicked
-  };
-
-  // Close the modal
-  const closeModal = () => {
-    setIsModalVisible(false);
-    setSelectedUser(null); // Reset the selected user
   };
 
   // Animated touch effect
@@ -115,24 +98,76 @@ const ConnectionScreen = ({ navigation }: { navigation: any }) => {
     );
   };
 
-  const UserCard = ({ user }: { user: any }) => (
-    <AnimatedTouchable onPress={() => handleCardClick(user)}>
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: isDarkMode ? "#1E2A3A" : "#F5F5F5" },
-        ]}
-      >
-        <Image source={{ uri: user.imageUrl }} style={styles.profileImage} />
-        <View style={styles.details}>
+  const UserCard = ({ user }: { user: Connections }) => (
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: isDarkMode ? "#1E2A3A" : "#F5F5F5" },
+      ]}
+    >
+      <Image source={{ uri: user.imageUrl }} style={styles.profileImage} />
+      <View style={styles.details}>
+        <Text
+          style={[styles.name, { color: isDarkMode ? "#a77bf1" : "#333" }]}
+        >
+          {user.name}
+        </Text>
+        <View style={styles.contactRow}>
+          <FontAwesome
+            name="instagram"
+            size={16}
+            color={isDarkMode ? "white" : "#555"}
+          />
           <Text
-            style={[styles.name, { color: isDarkMode ? "#a77bf1" : "#333" }]}
+            style={[styles.contactText, { color: isDarkMode ? "white" : "#555" }]}
+            onPress={() =>
+              user.instagram
+                ? Linking.openURL(`https://instagram.com/${user.instagram}`)
+                : Alert.alert("Not Available")
+            }
           >
-            {user.name}
+            {user.instagram || "Not available"}
+          </Text>
+        </View>
+        <View style={styles.contactRow}>
+          <Ionicons
+            name="call-outline"
+            size={16}
+            color={isDarkMode ? "white" : "#555"}
+          />
+          <Text
+            style={[styles.contactText, { color: isDarkMode ? "white" : "#555" }]}
+            onPress={() =>
+              user.phone
+                ? Linking.openURL(`tel:${user.phone}`)
+                : Alert.alert("Not Available")
+            }
+          >
+            {user.phone || "Not available"}
+          </Text>
+        </View>
+        <View style={styles.contactRow}>
+          <Ionicons
+            name="mail-outline"
+            size={16}
+            color={isDarkMode ? "white" : "#555"}
+          />
+          <Text style={[styles.contactText, { color: isDarkMode ? "white" : "#555" }]}>
+            {user.email || "Not available"}
           </Text>
         </View>
       </View>
-    </AnimatedTouchable>
+      <TouchableOpacity
+        onPress={() => navigateToChat(user)}
+        style={styles.chatIconContainer}
+      >
+        <Ionicons
+          name="chatbubble-ellipses-outline"
+          size={24}
+          color={isDarkMode ? "#a77bf1" : "#333"}
+        />
+      </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -178,105 +213,6 @@ const ConnectionScreen = ({ navigation }: { navigation: any }) => {
           contentContainerStyle={styles.list}
         />
       )}
-
-      {/* Modal */}
-      <Modal
-        visible={isModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={closeModal}
-      >
-        <View style={styles.modal}>
-          {selectedUser ? (
-            <View style={styles.modalContent}>
-              <Image
-                source={{ uri: selectedUser.imageUrl }}
-                style={styles.modalProfileImage}
-              />
-              <Text
-                style={[
-                  styles.modalName,
-                  { color: isDarkMode ? "#a77bf1" : "#333" },
-                ]}
-              >
-                {selectedUser.name}
-              </Text>
-              <View style={styles.modalRow}>
-                <FontAwesome
-                  name="instagram"
-                  size={20}
-                  color={isDarkMode ? "white" : "#555"}
-                />
-                <Text
-                  style={[
-                    styles.modalText,
-                    { color: isDarkMode ? "white" : "#555" },
-                  ]}
-                  onPress={() =>
-                    selectedUser.instagram
-                      ? Linking.openURL(
-                          `https://instagram.com/${selectedUser.instagram}`
-                        )
-                      : Alert.alert("Not Available")
-                  }
-                >
-                  {selectedUser.instagram || "Not available"}
-                </Text>
-              </View>
-              <View style={styles.modalRow}>
-                <Ionicons
-                  name="call-outline"
-                  size={20}
-                  color={isDarkMode ? "white" : "#555"}
-                />
-                <Text
-                  style={[
-                    styles.modalText,
-                    { color: isDarkMode ? "white" : "#555" },
-                  ]}
-                  onPress={() =>
-                    selectedUser.phone
-                      ? Linking.openURL(`tel:${selectedUser.phone}`)
-                      : Alert.alert("Not Available")
-                  }
-                >
-                  {selectedUser.phone || "Not available"}
-                </Text>
-              </View>
-              <View style={styles.modalRow}>
-                <Ionicons
-                  name="mail-outline"
-                  size={20}
-                  color={isDarkMode ? "white" : "#555"}
-                />
-                <Text
-                  style={[
-                    styles.modalText,
-                    { color: isDarkMode ? "white" : "#555" },
-                  ]}
-                >
-                  {selectedUser.email || "Not available"}
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => navigateToChat(selectedUser)}
-                style={styles.chatButton}
-              >
-                <Text
-                  style={[
-                    styles.chatButtonText,
-                    { color: isDarkMode ? "#fff" : "#333" },
-                  ]}
-                >
-                  Chat Now
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <ActivityIndicator size="large" color="#a77bf1" />
-          )}
-        </View>
-      </Modal>
     </View>
   );
 };
@@ -293,11 +229,11 @@ const styles = StyleSheet.create({
   header: { fontSize: 22, fontWeight: "bold" },
   list: { padding: 10 },
   card: {
-    borderRadius: 10,
-    marginVertical: 8,
-    padding: 15,
     flexDirection: "row",
     alignItems: "center",
+    padding: 15,
+    borderRadius: 10,
+    marginVertical: 8,
     elevation: 5,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 5 },
@@ -311,41 +247,17 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#a77bf1",
   },
-  details: { marginLeft: 15, flex: 1 },
-  name: { fontSize: 18, fontWeight: "bold" },
-  modal: {
-    flex: 1,
+  details: { flex: 1, marginLeft: 15 },
+  name: { fontSize: 18, fontWeight: "bold", marginBottom: 5 },
+  contactRow: { flexDirection: "row", alignItems: "center", marginVertical: 3 },
+  contactText: { fontSize: 14, marginLeft: 8 },
+  chatIconContainer: {
+    padding: 10,
+    borderRadius: 20,
+    backgroundColor: "#E6E6E6",
+    alignItems: "center",
     justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 20,
-    width: "85%",
-    maxWidth: 400,
-    alignItems: "center",
-    elevation: 8,
-  },
-  modalProfileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 2,
-    borderColor: "#a77bf1",
-  },
-  modalName: { fontSize: 20, fontWeight: "bold", marginVertical: 10 },
-  modalRow: { flexDirection: "row", alignItems: "center", marginVertical: 5 },
-  modalText: { fontSize: 16, marginLeft: 10 },
-  chatButton: {
-    marginTop: 20,
-    backgroundColor: "#a77bf1",
-    borderRadius: 5,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-  },
-  chatButtonText: { fontSize: 18, fontWeight: "bold", textAlign: "center" },
 });
 
 export default ConnectionScreen;

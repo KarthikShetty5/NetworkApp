@@ -206,6 +206,15 @@ const ChatScreen = ({ route, navigation }: any) => {
         </View>
       </View>
 
+      {/* Encryption Message */}
+      <View style={styles.encryptionMessageContainer}>
+        <Ionicons name="lock-closed-outline" size={14} color="white" />
+        <Text style={styles.encryptionMessage}>
+          {" "}Chat is end-to-end encrypted{" "}
+        </Text>
+        <Ionicons name="lock-closed-outline" size={14} color="white" />
+      </View>
+
       {/* Messages List */}
       <FlatList
         data={messages}
@@ -269,6 +278,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  encryptionMessageContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    backgroundColor: "rgba(30,30,30,0.8)", // Light theme background
+    borderTopWidth: 1,
+    borderColor: "#E0E0E0", // Border for separation
+  },
+  encryptionMessage: {
+    fontSize: 12,
+    color: "white", // Subtle text color
+    fontStyle: "italic", // Optional: make it look elegant
+  },  
   header: {
     flexDirection: "row",
     alignItems: "center",

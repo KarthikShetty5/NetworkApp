@@ -87,8 +87,27 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const locationUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [notificationCount, setNotificationCount] = useState(0); // Set this dynamically
 
+
+  useEffect(()=>{
+    const fetchNotifications = async ()=>{
+      try{
+        const userId = await AsyncStorage.getItem('userId');
+        if(userId){
+          const response = await getNotification(userId)
+          setNotificationCount(response.length);
+        }
+      }catch(err){
+        console.error(err);
+      }
+    }
+    fetchNotifications();
+  },[])
+  
   const fetchAndSendUserRequests = async (location: NearbyUsersPayload) => {
-    if(!location) return;
+    if(!location) {
+      Alert.alert("Warning", "Enable Location for user requests")
+      return;
+    }
     try {
       // Retrieve current userId from storage
       const currentUserId = await AsyncStorage.getItem("userId");
@@ -138,66 +157,50 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         }
       }
   
-      return filteredUsers; // Return the filtered list of users (excluding the current user)
+      // return filteredUsers; // Return the filtered list of users (excluding the current user)
     } catch (error:any) {
       console.error("Error in fetchAndSendUserRequests:", error.message || error);
       throw error;
     }
   };
 
-  useEffect(()=>{
-    const fetchNotifications = async ()=>{
-      try{
-        const userId = await AsyncStorage.getItem('userId');
-        if(userId){
-          const response = await getNotification(userId)
-          console.log(response)
-          setNotificationCount(response.length);
-        }
-      }catch(err){
-        console.error(err);
-      }
-    }
-    fetchNotifications();
-  },[])
-
-
   const fetchLocation = useCallback(async () => {
     try {
-      let { status } = await Location.requestForegroundPermissionsAsync();
+      const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         Alert.alert("Permission Denied", "Location permissions are required.");
         return;
       }
 
-      // Stop any existing watcher
-      if (locationWatcherRef.current) {
-        locationWatcherRef.current.remove();
-      }
-
-      // Start watching location changes with optimized options
+      // Start watching location changes
       locationWatcherRef.current = await Location.watchPositionAsync(
         {
-          accuracy: Location.Accuracy.Balanced, // More battery-efficient
-          timeInterval: 10000, // Update every 10 seconds
-          distanceInterval: 10, // Update every 50 meters
+          accuracy: Location.Accuracy.High, // Higher accuracy for small movements
+          timeInterval: 5000, // Check every 5 seconds
+          distanceInterval: 1, // Minimum distance change of 1 meter
         },
         (newLocation) => {
-          const newLocationData: LocationProps = {
-            coords: {
-              latitude: newLocation.coords.latitude,
-              longitude: newLocation.coords.longitude,
-            },
+          const newCoords = {
+            latitude: newLocation.coords.latitude,
+            longitude: newLocation.coords.longitude,
           };
-          setLocation(prevLocation => {
-            // Only update if location has significantly changed
-            if (!prevLocation || 
-                Math.abs(prevLocation.coords.latitude - newLocationData.coords.latitude) > 0.0000000001 ||
-                Math.abs(prevLocation.coords.longitude - newLocationData.coords.longitude) > 0.0000000001
-            ) {
-              return newLocationData;
+
+          setLocation((prevLocation) => {
+            if (!prevLocation) {
+              console.log("Setting initial location:", newCoords);
+              return { coords: newCoords };
             }
-            return prevLocation;
+
+            const latitudeDiff = Math.abs(prevLocation.coords.latitude - newCoords.latitude);
+            const longitudeDiff = Math.abs(prevLocation.coords.longitude - newCoords.longitude);
+
+            if (latitudeDiff > 0.00001 || longitudeDiff > 0.00001) { // Threshold for small changes
+              console.log("Updating location:", newCoords);
+              return { coords: newCoords };
+            } else {
+              console.log("Skipping location update. No significant change.");
+              return prevLocation;
+            }
           });
         }
       );
@@ -206,22 +209,29 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
   }, []);
 
+
   const updateLocation = useCallback(async () => {
-    const userId = await AsyncStorage.getItem("userId");
-
-    if (!location || !userId) return;
-
-    // Check if the location has changed significantly
-    const hasLocationChanged = !previousLocationRef.current || 
-      Math.abs(location.coords.latitude - previousLocationRef.current.coords.latitude) > 0.0000000001 ||
-      Math.abs(location.coords.longitude - previousLocationRef.current.coords.longitude) > 0.0000000001;
-
-    if (!hasLocationChanged) {
-      console.log("Location unchanged, skipping update.");
+    // const userId = await AsyncStorage.getItem("userId");
+    const userId = '122345';
+    if (!location) {
+      console.log("No location to update.");
       return;
     }
 
-    try{
+    const prevLocation = previousLocationRef.current;
+    const latitudeDiff = prevLocation
+      ? Math.abs(prevLocation.coords.latitude - location.coords.latitude)
+      : Infinity;
+    const longitudeDiff = prevLocation
+      ? Math.abs(prevLocation.coords.longitude - location.coords.longitude)
+      : Infinity;
+
+    if (latitudeDiff > 0.00001 || longitudeDiff > 0.00001) {
+      console.log("Location changed significantly. Updating backend:", location.coords);
+      previousLocationRef.current = location;
+
+      // Update backend here
+      try{
       // Fetch nearby users and send requests for connections
       await fetchAndSendUserRequests(location.coords);
     }catch(e){
@@ -235,10 +245,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     } catch (error) {
       console.error("Failed to update location:", error);
     }
+    } else {
+      console.log("Location unchanged. Skipping backend update.");
+    }
+
   }, [location]);
 
   const startLocationUpdates = useCallback(() => {
-    // Clear any existing timeout
     if (locationUpdateTimeoutRef.current) {
       clearTimeout(locationUpdateTimeoutRef.current);
     }
@@ -250,31 +263,33 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         console.error("Error in update loop:", error);
       }
 
-      // Schedule the next update with a more robust approach
-      locationUpdateTimeoutRef.current = setTimeout(updateLoop, 30000);
+      locationUpdateTimeoutRef.current = setTimeout(updateLoop, 50000); // Repeat every 5 seconds
     };
 
     updateLoop(); // Start the first update
   }, [updateLocation]);
 
   useEffect(() => {
-    // Separate concerns: location fetching and updates
     fetchLocation();
-    const updateInterval = startLocationUpdates();
-
-    // Cleanup on component unmount
+    startLocationUpdates();
+  
     return () => {
+      // Stop the location watcher
       if (locationWatcherRef.current) {
         locationWatcherRef.current.remove();
+        locationWatcherRef.current = null;
       }
+  
+      // Clear the timeout
       if (locationUpdateTimeoutRef.current) {
         clearTimeout(locationUpdateTimeoutRef.current);
+        locationUpdateTimeoutRef.current = null;
       }
     };
-  }, []); // Empty dependency array to run only once
+  }, [fetchLocation, startLocationUpdates]);
   
-   // Animated values
-   const fadeAnim = useSharedValue(0);
+
+  const fadeAnim = useSharedValue(0);
    
   // Fetch User Data
   const fetchUserData = async () => {
