@@ -425,6 +425,7 @@ import {
   Modal,
   TouchableOpacity,
   Dimensions,
+  ScrollView,
 } from "react-native";
 import * as Location from "expo-location";
 import { LinearGradient } from "expo-linear-gradient";
@@ -432,7 +433,11 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import WebView from "react-native-webview";
 import * as Haptics from "expo-haptics";
-
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 import getNearbyUsersApi from "@/app/api/TrackApi";
 import connectUser from "@/app/api/ConnectApi";
 
@@ -457,13 +462,17 @@ const Map: React.FC<MapScreenProps> = ({ navigation }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<any[]>([]);
 
+  const modalScale = useSharedValue(1);
+
+  const animatedModalStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: withSpring(modalScale.value) }],
+  }));
+
   useEffect(() => {
     const checkUserId = async () => {
       try {
         const userId = await AsyncStorage.getItem("userId");
-        if (!userId) {
-          navigation.replace("SignUp");
-        }
+        if (!userId) navigation.replace("SignUp");
       } catch (error) {
         console.error("Error checking userId:", error);
       }
@@ -491,13 +500,13 @@ const Map: React.FC<MapScreenProps> = ({ navigation }) => {
       const result = await getNearbyUsersApi(payload);
       if (result.success && result.data) {
         const processedUsers = result.data.map((user: any) => ({
-          _id: user._id,
           userId: user.userId,
           name: user.name,
           location: user.location,
           imageUrl: user.imageUrl,
         }));
         setNearbyUsers(processedUsers);
+        console.log("Nearby Users:", processedUsers); 
       } else {
         Alert.alert("Error", result.message || "Unable to fetch nearby users.");
       }
@@ -513,13 +522,13 @@ const Map: React.FC<MapScreenProps> = ({ navigation }) => {
   }, []);
 
   const handleConnect = async (connectId: string) => {
-    const userId = await AsyncStorage.getItem("userId");
-    if (!userId) {
-      Alert.alert("Error", "User not logged in.");
-      return;
-    }
-
     try {
+      const userId = await AsyncStorage.getItem("userId");
+      if (!userId) {
+        Alert.alert("Error", "User not logged in.");
+        return;
+      }
+
       const result = await connectUser(userId, connectId);
       Alert.alert(result.message);
     } catch (error) {
@@ -534,57 +543,46 @@ const Map: React.FC<MapScreenProps> = ({ navigation }) => {
     setModalVisible(true);
   };
 
-  // HTML with clustering logic for WebView
   const mapHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    html, body, #map { height: 100%; margin: 0; padding: 0; }
-  </style>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-</head>
-<body>
-  <div id="map"></div>
-  <script>
-    document.addEventListener("DOMContentLoaded", function() {
-      const map = L.map('map').setView([13.6489184, 74.7262083], 13);
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        html, body, #map { height: 100%; margin: 0; padding: 0; }
+      </style>
+      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    </head>
+    <body>
+      <div id="map"></div>
+      <script>
+        document.addEventListener("DOMContentLoaded", function() {
+          const map = L.map('map').setView([13.6489184, 74.7262083], 13);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+          const users = ${JSON.stringify(nearbyUsers)};
+          if (users && users.length > 0) {
+            const userGroups = {};
+            users.forEach(user => {
+              if (user.location) {
+                const key = \`\${Math.round(user.location.latitude * 1000)}_\${Math.round(user.location.longitude * 1000)}\`;
+                if (!userGroups[key]) userGroups[key] = [];
+                userGroups[key].push(user);
+              }
+            });
 
-      const users = ${JSON.stringify(nearbyUsers)};
-
-      if (users && users.length > 0) {
-        const userGroups = {};
-
-        // Group users by rounded latitude and longitude
-        users.forEach(user => {
-          if (user.location) {
-            const key = \`\${Math.round(user.location.latitude * 1000)}_\${Math.round(user.location.longitude * 1000)}\`;
-            if (!userGroups[key]) {
-              userGroups[key] = [];
-            }
-            userGroups[key].push(user);
+            Object.values(userGroups).forEach(group => {
+              const user = group[0];
+              const marker = L.marker([user.location.latitude, user.location.longitude]).addTo(map);
+              marker.bindPopup("<b>Users:</b><br>" + group.map(u => u.name).join(", "));
+              marker.on('click', () => window.ReactNativeWebView.postMessage(JSON.stringify(group)));
+            });
           }
         });
-
-        // Add markers
-        Object.values(userGroups).forEach(group => {
-          const user = group[0];
-          const marker = L.marker([user.location.latitude, user.location.longitude]).addTo(map);
-          marker.bindPopup("<b>Users:</b><br>" + group.map(u => u.name).join(", "));
-
-          marker.on('click', function() {
-            window.ReactNativeWebView.postMessage(JSON.stringify(group));
-          });
-        });
-      }
-    });
-  </script>
-</body>
-</html>
-`;
+      </script>
+    </body>
+    </html>
+  `;
 
   return (
     <LinearGradient colors={["#121212", "#1E1E1E", "#121212"]} style={styles.container}>
@@ -619,29 +617,43 @@ const Map: React.FC<MapScreenProps> = ({ navigation }) => {
         />
       )}
 
-      <Modal animationType="slide" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
-        <View style={styles.modalContainer}>
-          <LinearGradient colors={[COLORS.primary, COLORS.secondary]} style={styles.modalGradient}>
-            {selectedUsers.map((user, index) => (
-              <View key={index} style={styles.modalUserContainer}>
-                <Image
-                  source={{
-                    uri: user.imageUrl || "https://cdn2.iconfinder.com/data/icons/business-hr-and-recruitment/100/account_blank_face_dummy_human_mannequin_profile_user_-1024.png",
-                  }}
-                  style={styles.modalImage}
-                />
-                <Text style={styles.modalTitle}>{user.name}</Text>
-                <TouchableOpacity style={styles.connectButton} onPress={() => handleConnect(user.userId)}>
-                  <Text style={styles.connectButtonText}>Connect</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-            <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
-          </LinearGradient>
-        </View>
-      </Modal>
+<Modal
+  animationType="slide"
+  transparent={true}
+  visible={modalVisible}
+  onRequestClose={() => setModalVisible(false)}
+>
+  <View style={styles.modalContainer}>
+    <Animated.View style={[styles.modalContent, animatedModalStyle]}>
+      <LinearGradient colors={[COLORS.primary, COLORS.secondary]} style={styles.modalGradient}>
+        <Text style={styles.modalTitle}>Nearby Users</Text>
+        <ScrollView contentContainerStyle={styles.userList}>
+          {selectedUsers?.map((user: any, index: number) => (
+            <View key={ index} style={styles.userCard}>
+              <Image
+                source={{
+                  uri: user.imageUrl || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
+                }}
+                style={styles.modalImage}
+              />
+              <Text style={styles.modalUserName}>{user.name}</Text>
+              <TouchableOpacity
+                style={styles.connectButton}
+                onPress={() => handleConnect(user.userId)}
+              >
+                <Text style={styles.connectButtonText}>Connect</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </ScrollView>
+        <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
+          <Text style={styles.closeButtonText}>Close</Text>
+        </TouchableOpacity>
+      </LinearGradient>
+    </Animated.View>
+  </View>
+</Modal>
+
     </LinearGradient>
   );
 };
@@ -655,15 +667,89 @@ const styles = StyleSheet.create({
   filterButton: { padding: 10 },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   loadingText: { color: COLORS.text, marginTop: 10 },
-  modalContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.5)" },
-  modalGradient: { padding: 20, borderRadius: 20, alignItems: "center", width: width * 0.85 },
   modalUserContainer: { marginBottom: 15, alignItems: "center" },
-  modalImage: { width: 80, height: 80, borderRadius: 40, marginBottom: 10 },
-  modalTitle: { fontSize: 18, color: COLORS.text },
-  connectButton: { backgroundColor: COLORS.accent, padding: 10, borderRadius: 5, marginVertical: 10 },
-  connectButtonText: { color: COLORS.background },
-  closeButton: { marginTop: 10 },
-  closeButtonText: { color: COLORS.text },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    width: '90%',
+    height: '80%', // Adjust height to allow scrolling
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  modalGradient: {
+    flex: 1,
+    padding: 20,
+    borderRadius: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  userList: {
+    paddingBottom: 20, // Prevent cut-off at the bottom
+  },
+  userCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 10,
+    marginBottom: 10,
+    backgroundColor: COLORS.secondary,
+    borderRadius: 10,
+  },
+  modalImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 10,
+  },
+  modalUserName: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    color: COLORS.text,
+  },
+  connectButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 5,
+  },
+  connectButtonText: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  closeButton: {
+    marginTop: 10,
+    alignSelf: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: COLORS.secondary,
+    borderRadius: 10,
+  },
+  closeButtonText: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+
+  scrollView: {
+    paddingVertical: 10,
+  },
+  modalUserLocation: {
+    fontSize: 14,
+    color: COLORS.text,
+    opacity: 0.7,
+    marginBottom: 10,
+  },  
 });
 
 export default Map;
